@@ -9,13 +9,8 @@ export interface TickerData {
 
 // --- Filter Criteria Schemas and Types ---
 
-// Base schema matching the FilterCriteria type, including nullable numbers
-// Used internally by AI flow and form validation.
-// Replaced .positive() with .min(0) to avoid exclusiveMinimum issues with Gemini API
-export const FilterCriteriaSchema = z.object({
-  marketCapMin: z.number().min(0).nullable().describe('Minimum market capitalization (e.g., 10000000000 for $10B). MUST be a number >= 0 or exactly `null`.'),
-  volumeMin: z.number().min(0).nullable().describe('Minimum average daily trading volume (e.g., 1000000 for 1M). MUST be a number >= 0 or exactly `null`.'),
-  interval: z.enum([
+// Define the allowed interval values explicitly for string validation/description
+const allowedIntervals = [
     "daily",
     "weekly",
     "monthly",
@@ -25,11 +20,22 @@ export const FilterCriteriaSchema = z.object({
     "2y",
     "5y",
     "10y",
-  ]).describe('The suggested data interval (must be one of the listed values).'),
+] as const; // Use 'as const' for literal types
+
+// Base schema matching the FilterCriteria type, including nullable numbers
+// Used internally by AI flow and form validation.
+// Changed interval from z.enum to z.string with described allowed values.
+export const FilterCriteriaSchema = z.object({
+  marketCapMin: z.number().min(0).nullable().describe('Minimum market capitalization (e.g., 10000000000 for $10B). MUST be a number >= 0 or exactly `null`.'),
+  volumeMin: z.number().min(0).nullable().describe('Minimum average daily trading volume (e.g., 1000000 for 1M). MUST be a number >= 0 or exactly `null`.'),
+  interval: z.string().describe(`The suggested data interval. MUST be one of: "${allowedIntervals.join('", "')}".`),
 });
 
 // Criteria used to filter tickers before fetching data (TypeScript type)
-export type FilterCriteria = z.infer<typeof FilterCriteriaSchema>;
+// We can use a stricter type here for TypeScript code if needed, derived from the enum-like const
+export type FilterCriteria = Omit<z.infer<typeof FilterCriteriaSchema>, 'interval'> & {
+    interval: typeof allowedIntervals[number];
+};
 
 
 // --- AI Filter Suggestion Schemas and Types ---
@@ -42,10 +48,11 @@ export type GetFilterSuggestionsInput = z.infer<typeof GetFilterSuggestionsInput
 
 
 // Define the schema for a single suggestion
+// Uses the updated FilterCriteriaSchema with string interval
 export const SuggestedFilterSchema = z.object({
   strategy: z.string().describe('Name of the investment strategy (e.g., Large-Cap Growth, Small-Cap Value).'),
   description: z.string().describe('A brief explanation of the strategy and why these filters are suggested.'),
-  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are numbers >= 0 or null.'),
+  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are numbers >= 0 or null, and interval is one of the allowed strings.'),
 });
 export type SuggestedFilter = z.infer<typeof SuggestedFilterSchema>;
 

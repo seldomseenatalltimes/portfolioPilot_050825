@@ -14,7 +14,8 @@ import {
     GetFilterSuggestionsInputSchema, // Import schema for internal use
     GetFilterSuggestionsOutputSchema, // Import schema for internal use
     type GetFilterSuggestionsInput, // Import type for export
-    type GetFilterSuggestionsOutput // Import type for export
+    type GetFilterSuggestionsOutput, // Import type for export
+    FilterCriteriaSchema, // Import FilterCriteriaSchema to access interval details if needed (e.g., allowed values)
 } from '@/types/portfolio';
 
 // --- Define the Genkit prompt ---
@@ -31,7 +32,7 @@ Provide 3 to 5 diverse suggestions suitable for a portfolio analysis tool. For e
 3.  The specific 'filters' object including:
     *   'marketCapMin': The minimum market capitalization as a **full number** (e.g., 10000000000 for $10 Billion). If no minimum applies, the value MUST be exactly \`null\`. **Do not use 0 or omit the field if no minimum applies.**
     *   'volumeMin': The minimum average daily trading volume as a **full number** (e.g., 1000000 for 1 Million). If no minimum applies, the value MUST be exactly \`null\`. **Do not use 0 or omit the field if no minimum applies.**
-    *   'interval': The recommended data interval (must be one of: "daily", "weekly", "monthly", "quarterly", "yearly", "1y", "2y", "5y", "10y"). Choose an interval appropriate for the strategy's time horizon (e.g., daily/weekly for short-term, monthly/yearly for long-term).
+    *   'interval': The recommended data interval as a string. It MUST be one of: "daily", "weekly", "monthly", "quarterly", "yearly", "1y", "2y", "5y", "10y". Choose an interval appropriate for the strategy's time horizon (e.g., daily/weekly for short-term, monthly/yearly for long-term).
 
 Example Output Structure (must follow the JSON schema exactly):
 \`\`\`json
@@ -85,7 +86,7 @@ const getFilterSuggestionsFlow = ai.defineFlow(
     outputSchema: GetFilterSuggestionsOutputSchema, // Use imported schema
   },
   async (input: GetFilterSuggestionsInputInternal): Promise<GetFilterSuggestionsOutputInternal> => {
-    const { output } = await suggestionsPrompt(input);
+    const { output } = await prompt(input);
 
     if (!output) {
         throw new Error('AI failed to generate filter suggestions.');
@@ -104,6 +105,9 @@ const getFilterSuggestionsFlow = ai.defineFlow(
        if (typeof suggestion.filters.volumeMin !== 'number' && suggestion.filters.volumeMin !== null) {
         throw new Error(`AI returned invalid type for volumeMin in strategy "${suggestion.strategy}": expected number or null.`);
       }
+      // Optional: Validate interval string against allowed values (though schema description should guide the AI)
+      // const allowedIntervals = FilterCriteriaSchema.shape.interval._def. /* Access enum values if needed */ ;
+      // if (!allowedIntervals.includes(suggestion.filters.interval)) { ... }
     });
 
 

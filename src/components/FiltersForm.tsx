@@ -25,12 +25,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { FilterCriteria } from "@/types/portfolio";
+import { FilterCriteriaSchema } from "@/types/portfolio"; // Import the schema
 
-// Updated schema: Replaced .positive() with .min(0)
-const formSchema = z.object({
-  marketCapMin: z.coerce.number().min(0).optional().nullable(), // Internal representation: hundreds of millions
-  volumeMin: z.coerce.number().min(0).optional().nullable(),    // Internal representation: millions
-  interval: z.enum([
+
+// Use the imported schema directly for form validation
+const formSchema = FilterCriteriaSchema.extend({
+  // Override the number types for display purposes (hundreds of millions / millions)
+  marketCapMin: z.coerce.number().min(0).optional().nullable(),
+  volumeMin: z.coerce.number().min(0).optional().nullable(),
+}).omit({ interval: false }); // Keep interval as string for the form schema
+
+// Define the allowed intervals explicitly here for the Select component
+const allowedIntervals = [
     "daily",
     "weekly",
     "monthly",
@@ -40,8 +46,7 @@ const formSchema = z.object({
     "2y",
     "5y",
     "10y",
-  ]),
-});
+] as const;
 
 interface FiltersFormProps {
   initialFilters: FilterCriteria;
@@ -52,9 +57,10 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for display
-      volumeMin: initialFilters.volumeMin ? initialFilters.volumeMin / 1_000_000 : null,        // Divide by 1M for display
-      interval: initialFilters.interval,
+      // Convert numbers from FilterCriteria representation to form display representation
+      marketCapMin: initialFilters.marketCapMin !== null ? initialFilters.marketCapMin / 100_000_000 : null,
+      volumeMin: initialFilters.volumeMin !== null ? initialFilters.volumeMin / 1_000_000 : null,
+      interval: initialFilters.interval, // String type matches now
     },
   });
 
@@ -62,19 +68,27 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   useEffect(() => {
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed and scaled before passing
-      // Validate here or rely on Zod schema used in form
       const marketCapInput = values.marketCapMin ?? null;
       const volumeInput = values.volumeMin ?? null;
 
-      const marketCapValue = marketCapInput !== null && marketCapInput >= 0 ? marketCapInput * 100_000_000 : null; // Multiply by 100M before passing
-      const volumeValue = volumeInput !== null && volumeInput >= 0 ? volumeInput * 1_000_000 : null; // Multiply by 1M before passing
+      // Convert numbers back to the FilterCriteria representation (full numbers)
+      const marketCapValue = marketCapInput !== null && marketCapInput >= 0 ? marketCapInput * 100_000_000 : null;
+      const volumeValue = volumeInput !== null && volumeInput >= 0 ? volumeInput * 1_000_000 : null;
 
+      // Construct the FilterCriteria object with the correct types
       const typedValues: FilterCriteria = {
         marketCapMin: marketCapValue,
         volumeMin: volumeValue,
-        interval: values.interval as FilterCriteria['interval'],
+        interval: values.interval as FilterCriteria['interval'], // Assert type based on allowedIntervals
       };
-      onFiltersChange(typedValues);
+
+      // Basic validation to ensure interval is one of the allowed values
+      if (allowedIntervals.includes(typedValues.interval)) {
+          onFiltersChange(typedValues);
+      } else {
+         // Handle invalid interval string if necessary, though Select should prevent this
+         console.error("Invalid interval selected:", typedValues.interval);
+      }
     });
     return () => subscription.unsubscribe();
   }, [form, onFiltersChange]);
@@ -82,9 +96,10 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   // Effect to reset the form when initialFilters prop changes
   useEffect(() => {
     form.reset({
-       marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for reset display
-      volumeMin: initialFilters.volumeMin ? initialFilters.volumeMin / 1_000_000 : null,          // Divide by 1M for reset display
-      interval: initialFilters.interval,
+      // Convert numbers from FilterCriteria representation to form display representation on reset
+      marketCapMin: initialFilters.marketCapMin !== null ? initialFilters.marketCapMin / 100_000_000 : null,
+      volumeMin: initialFilters.volumeMin !== null ? initialFilters.volumeMin / 1_000_000 : null,
+      interval: initialFilters.interval, // String type matches now
     });
   }, [initialFilters, form]); // form.reset is stable, including form is good practice
 
@@ -143,15 +158,13 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                  <SelectItem value="1y">1 Year</SelectItem>
-                  <SelectItem value="2y">2 Years</SelectItem>
-                  <SelectItem value="5y">5 Years</SelectItem>
-                  <SelectItem value="10y">10 Years</SelectItem>
+                  {/* Map over the allowed intervals */}
+                  {allowedIntervals.map(intervalValue => (
+                     <SelectItem key={intervalValue} value={intervalValue}>
+                       {/* Capitalize first letter for display */}
+                       {intervalValue.charAt(0).toUpperCase() + intervalValue.slice(1)}
+                     </SelectItem>
+                   ))}
                 </SelectContent>
               </Select>
               <FormDescription>
@@ -166,4 +179,3 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
     </Form>
   );
 }
-
