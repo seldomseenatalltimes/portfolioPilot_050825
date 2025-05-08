@@ -1,7 +1,7 @@
 // src/components/FiltersForm.tsx
 "use client";
 
-import { useEffect } from "react";
+import React from "react"; // Import React
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -48,7 +48,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   });
 
   // Watch for changes and call onFiltersChange
-  useEffect(() => {
+  React.useEffect(() => { // Use React.useEffect to match error stack
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed before passing
       const typedValues = {
