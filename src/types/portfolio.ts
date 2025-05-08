@@ -6,7 +6,16 @@ export interface TickerData {
 export interface FilterCriteria {
   marketCapMin?: number | null;
   volumeMin?: number | null;
-  interval: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  interval:
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'quarterly'
+    | 'yearly'
+    | '1y'
+    | '2y'
+    | '5y'
+    | '10y';
 }
 
 export type OptimizationMethod =

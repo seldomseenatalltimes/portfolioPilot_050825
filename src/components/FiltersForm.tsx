@@ -1,7 +1,7 @@
 // src/components/FiltersForm.tsx
 "use client";
 
-import React from "react"; // Import React
+import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,7 +29,17 @@ import type { FilterCriteria } from "@/types/portfolio";
 const formSchema = z.object({
   marketCapMin: z.coerce.number().positive().optional().nullable(),
   volumeMin: z.coerce.number().positive().optional().nullable(),
-  interval: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]),
+  interval: z.enum([
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "yearly",
+    "1y",
+    "2y",
+    "5y",
+    "10y",
+  ]),
 });
 
 interface FiltersFormProps {
@@ -48,10 +58,10 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   });
 
   // Watch for changes and call onFiltersChange
-  React.useEffect(() => { // Use React.useEffect to match error stack
+  React.useEffect(() => {
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed before passing
-      const typedValues = {
+      const typedValues: FilterCriteria = {
         marketCapMin: values.marketCapMin ?? null,
         volumeMin: values.volumeMin ?? null,
         interval: values.interval as FilterCriteria['interval'],
@@ -121,10 +131,14 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="1y">1 Year</SelectItem>
+                  <SelectItem value="2y">2 Years</SelectItem>
+                  <SelectItem value="5y">5 Years</SelectItem>
+                  <SelectItem value="10y">10 Years</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
-                The frequency of historical data points.
+                The frequency or period of historical data points.
               </FormDescription>
               <FormMessage />
             </FormItem>
