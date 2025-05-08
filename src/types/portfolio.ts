@@ -1,4 +1,6 @@
 // src/types/portfolio.ts
+import type { z } from 'genkit';
+import type { GetFilterSuggestionsOutputSchema, SuggestedFilterSchema } from '@/ai/flows/get-filter-suggestions'; // Import schema types only for inference
 
 // Represents raw data from uploaded CSV/TXT files
 export interface TickerData {
@@ -65,13 +67,6 @@ export interface OptimizationResult {
   efficientFrontierData?: RiskReturnChartData[]; // Specifically for Monte Carlo or similar methods
 }
 
-// Data structure for the allocation bar chart
-export interface AllocationChartData {
-  name: string; // Asset name (ticker)
-  value: number; // Allocation percentage
-  fill: string; // Color for the bar (assigned in the component)
-}
-
 // Structure of the response from the optimizePortfolio API endpoint
 export interface OptimizationApiResponse {
     results: OptimizationResult;
@@ -89,3 +84,29 @@ export interface StockData {
   volume: number;
 }
 
+// Data structure for the allocation bar chart
+export interface AllocationChartData {
+  name: string; // Asset name (ticker)
+  value: number; // Allocation percentage
+  fill: string; // Color for the bar (assigned in the component)
+}
+
+
+// --- AI Filter Suggestion Types ---
+
+// Input type for the AI filter suggestions flow (currently empty)
+export interface GetFilterSuggestionsInput {
+  // Optional fields like riskTolerance, goals could be added here
+}
+
+// Type for a single AI suggestion, matching the Zod schema output
+export type SuggestedFilter = z.infer<typeof SuggestedFilterSchema>;
+
+// Output type for the AI filter suggestions flow, matching the Zod schema output
+export type GetFilterSuggestionsOutput = z.infer<typeof GetFilterSuggestionsOutputSchema>;
+
+// Combined type for a suggestion used in the UI, adding strategy/description to FilterCriteria
+export type SuggestedFilterCriteria = FilterCriteria & {
+  strategy: string;
+  description: string;
+};

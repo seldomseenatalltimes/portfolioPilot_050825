@@ -8,14 +8,16 @@ import { FiltersForm } from "@/components/FiltersForm";
 import { OptimizerSelect } from "@/components/OptimizerSelect";
 import { ResultsTable } from "@/components/ResultsTable";
 import { Charts } from "@/components/Charts";
-import { DownloadResultsButton } from "@/components/DownloadResultsButton"; // Import new component
+import { DownloadResultsButton } from "@/components/DownloadResultsButton";
+import { FilterSuggestionsDisplay } from "@/components/FilterSuggestionsDisplay"; // Import new component
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw } from "lucide-react";
-import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult, OptimizationApiResponse } from "@/types/portfolio"; // Added OptimizationApiResponse
+import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw, Wand2 } from "lucide-react"; // Added Wand2
+import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult, OptimizationApiResponse, GetFilterSuggestionsOutput, SuggestedFilter } from "@/types/portfolio"; // Updated import
 import { optimizePortfolio, uploadTickers } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getFilterSuggestions } from "@/ai/flows/get-filter-suggestions"; // Import AI flow
 
 const initialFiltersState: FilterCriteria = {
   marketCapMin: null,
@@ -32,6 +34,9 @@ export default function PortfolioPilotPage() {
   const [optimizationResults, setOptimizationResults] = useState<OptimizationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filterSuggestions, setFilterSuggestions] = useState<GetFilterSuggestionsOutput | null>(null); // State for AI suggestions
+  const [isSuggestingFilters, setIsSuggestingFilters] = useState(false); // Loading state for AI suggestions
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null); // Error state for AI suggestions
   const { toast } = useToast();
 
   const [isClient, setIsClient] = useState(false);
@@ -41,24 +46,25 @@ export default function PortfolioPilotPage() {
 
   const handleFilesChange = (newFiles: File[]) => {
     setUploadedFiles(newFiles);
-    // If files are changed, it's good practice to clear old results
     if (optimizationResults) setOptimizationResults(null);
     if (error) setError(null);
   };
 
   const handleFiltersChange = useCallback((newFiltersCandidate: FilterCriteria) => {
-    // Values coming from FiltersForm are already the full numbers (e.g., marketCapMin in actual value, not hundreds of millions)
     setFilters(currentFilters => {
       if (
         currentFilters.marketCapMin === newFiltersCandidate.marketCapMin &&
         currentFilters.volumeMin === newFiltersCandidate.volumeMin &&
         currentFilters.interval === newFiltersCandidate.interval
       ) {
-        return currentFilters; // No actual change, return the current state reference
+        return currentFilters;
       }
-      return newFiltersCandidate; // Values changed, update with the new state
+      return newFiltersCandidate;
     });
-  }, []); // Empty dependency array is correct due to functional update form of setFilters
+    // If filters are manually changed, clear suggestions
+    if (filterSuggestions) setFilterSuggestions(null);
+    if (suggestionsError) setSuggestionsError(null);
+  }, [filterSuggestions, suggestionsError]); // Add dependencies
 
   const handleMethodChange = (method: OptimizationMethod) => {
     setSelectedMethod(method);
@@ -97,7 +103,7 @@ export default function PortfolioPilotPage() {
         return;
       }
 
-      if (uploadResponse.processedFileNames.length === 0) {
+       if (uploadResponse.processedFileNames.length === 0) {
          setError("No files provided for optimization.");
          setIsLoading(false);
          return;
@@ -106,10 +112,9 @@ export default function PortfolioPilotPage() {
 
       const params: OptimizationParams = {
         uploadedFileNames: uploadResponse.processedFileNames,
-        filters, // filters already contains the full market cap/volume numbers
+        filters,
         method: selectedMethod,
       };
-      // Use the new API response type
       const apiResponse: OptimizationApiResponse = await optimizePortfolio(params);
       setOptimizationResults(apiResponse.results);
       toast({
@@ -118,13 +123,12 @@ export default function PortfolioPilotPage() {
         variant: "default",
       });
 
-      // Check for and display rate limit warnings
       if (apiResponse.warning) {
           toast({
               title: "Rate Limit Warning",
               description: apiResponse.warning,
-              variant: "destructive", // Or a custom "warning" variant if available
-              duration: 9000, // Keep warning visible longer
+              variant: "destructive",
+              duration: 9000,
           });
       }
 
@@ -141,17 +145,53 @@ export default function PortfolioPilotPage() {
     }
   };
 
+  const handleGetSuggestions = async () => {
+    setIsSuggestingFilters(true);
+    setSuggestionsError(null);
+    setFilterSuggestions(null); // Clear previous suggestions
+    try {
+      const suggestions = await getFilterSuggestions({}); // Pass empty object for now
+      setFilterSuggestions(suggestions);
+      toast({
+        title: "AI Suggestions Received",
+        description: "Filter suggestions based on common strategies.",
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to get AI suggestions.";
+      setSuggestionsError(errorMessage);
+      toast({
+        title: "Suggestion Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSuggestingFilters(false);
+    }
+  };
+
+  const applySuggestedFilters = (suggestedFilters: FilterCriteria) => {
+    // Directly set the filters state using the suggested values
+    // The handleFiltersChange callback will automatically update the form via useEffect
+    setFilters(suggestedFilters);
+    toast({
+      title: "Filters Applied",
+      description: "AI suggested filters have been applied.",
+    });
+  };
+
+
   const handleReset = () => {
     setUploadedFiles([]);
-    setFilters(initialFiltersState); // Reset to initial state
+    setFilters(initialFiltersState);
     setSelectedMethod(initialSelectedMethodState);
     setOptimizationResults(null);
     setError(null);
+    setFilterSuggestions(null); // Clear suggestions on reset
+    setSuggestionsError(null);
     toast({
       title: "Form Reset",
       description: "All inputs and results have been cleared.",
     });
-     // Also reset the file input visually if possible
      const fileInput = document.getElementById('ticker-upload') as HTMLInputElement | null;
      if (fileInput) {
        fileInput.value = '';
@@ -211,11 +251,34 @@ export default function PortfolioPilotPage() {
                   <SlidersHorizontal className="mr-2 h-6 w-6 text-primary" />
                   Filtering Options
                 </CardTitle>
-                <CardDescription>Refine data based on your criteria.</CardDescription>
+                 <CardDescription>Refine data based on your criteria or get AI suggestions.</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6">
-                {/* Pass the current filters state to FiltersForm */}
+              <CardContent className="pt-6 space-y-4">
                 <FiltersForm initialFilters={filters} onFiltersChange={handleFiltersChange} />
+                 <Button
+                    onClick={handleGetSuggestions}
+                    disabled={isSuggestingFilters}
+                    variant="outline"
+                    className="w-full border-accent text-accent hover:bg-accent/10"
+                    aria-label="Get AI filter suggestions"
+                  >
+                    {isSuggestingFilters ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                       <Wand2 className="mr-2 h-4 w-4" />
+                    )}
+                    Get AI Filter Suggestions
+                  </Button>
+                   {suggestionsError && (
+                      <p className="text-sm text-destructive">{suggestionsError}</p>
+                    )}
+                   {filterSuggestions && !suggestionsError && (
+                        <FilterSuggestionsDisplay
+                            suggestions={filterSuggestions.suggestions}
+                            onApply={applySuggestedFilters}
+                            onClose={() => setFilterSuggestions(null)}
+                        />
+                   )}
               </CardContent>
             </Card>
 
@@ -314,7 +377,7 @@ export default function PortfolioPilotPage() {
                   <TrendingUp className="h-16 w-16 text-muted-foreground mb-4" />
                   <p className="text-lg font-medium text-foreground">Ready to Optimize</p>
                   <p className="text-sm text-muted-foreground text-center">
-                    Upload your CSV/TXT files, set filters, choose a method, and click "Optimize Portfolio" to see results.
+                    Upload your CSV/TXT files, set filters (or get AI suggestions!), choose a method, and click "Optimize Portfolio".
                   </p>
                 </Card>
              )}
@@ -323,7 +386,8 @@ export default function PortfolioPilotPage() {
       </main>
        <footer className="py-6 mt-12 text-center text-muted-foreground text-sm border-t border-border">
         <p>&copy; {new Date().getFullYear()} PortfolioPilot. All rights reserved.</p>
-        <p>Data processing and optimization are simulated for demonstration.</p>
+        <p>Data processing and optimization are simulated for demonstration unless integrated with a real financial API.</p>
+        <p className="mt-1 text-xs">AI suggestions are for informational purposes only and not financial advice.</p>
       </footer>
     </div>
   );
@@ -340,4 +404,3 @@ function paramsToString(filters: FilterCriteria, files: File[]): string {
 
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
-
