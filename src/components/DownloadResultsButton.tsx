@@ -6,7 +6,7 @@ import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import htmlToDocx from 'html-to-docx';
+// import htmlToDocx from 'html-to-docx'; // Removed client-side import
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,9 +14,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileDown, FileText, FileSpreadsheet, FileArchive } from "lucide-react"; // Using FileArchive as generic doc icon
+import { FileDown, FileText, FileSpreadsheet, FileArchive } from "lucide-react"; 
 import type { OptimizationResult, OptimizationMethod, FilterCriteria } from "@/types/portfolio";
 import { useToast } from "@/hooks/use-toast";
+import { generateDocxReport } from "@/actions/download-actions"; // Import server action
 
 interface DownloadResultsButtonProps {
   results: OptimizationResult;
@@ -25,10 +26,14 @@ interface DownloadResultsButtonProps {
   uploadedFileNames: string[];
 }
 
-export function DownloadResultsButton({ results, method, filters, uploadedFileNames }: DownloadResultsButtonProps) {
-  const { toast } = useToast();
-
-  const generateReportHTML = () => {
+// Keep the HTML generation function here as it's needed by the server action,
+// but it could also be moved to the server action file if preferred.
+export const generateReportHTML = (
+    results: OptimizationResult,
+    method: OptimizationMethod,
+    filters: FilterCriteria,
+    uploadedFileNames: string[]
+    ) => {
     const marketCapDisplay = filters.marketCapMin ? `$${filters.marketCapMin.toLocaleString()}` : 'N/A';
     const volumeDisplay = filters.volumeMin ? filters.volumeMin.toLocaleString() : 'N/A';
     const filesDisplay = uploadedFileNames.length > 0 ? uploadedFileNames.join(', ') : 'N/A';
@@ -96,6 +101,10 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
     return htmlContent;
   };
 
+
+export function DownloadResultsButton({ results, method, filters, uploadedFileNames }: DownloadResultsButtonProps) {
+  const { toast } = useToast();
+
   const handleDownload = async (format: "docx" | "pdf" | "xlsx") => {
     toast({ title: "Generating Report...", description: `Preparing ${format.toUpperCase()} file.` });
     try {
@@ -103,13 +112,19 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
       const filename = `Portfolio_Report_${timestamp}`;
 
       if (format === "docx") {
-        const htmlContent = generateReportHTML();
-        const fileBuffer = await htmlToDocx(htmlContent, undefined, {
-          table: { row: { cantSplit: true } },
-          footer: true,
-          pageNumber: true,
-        });
-        saveAs(fileBuffer as Blob, `${filename}.docx`);
+         const reportData = {
+          results,
+          method,
+          filters,
+          uploadedFileNames
+        };
+        const blob = await generateDocxReport(reportData);
+        if (blob) {
+            saveAs(blob, `${filename}.docx`);
+        } else {
+            throw new Error("Failed to generate DOCX report on the server.");
+        }
+
       } else if (format === "pdf") {
         const doc = new jsPDF();
         const marketCapDisplay = filters.marketCapMin ? `$${filters.marketCapMin.toLocaleString()}` : 'N/A';
