@@ -1,7 +1,7 @@
 // src/components/FiltersForm.tsx
 "use client";
 
-import React, { useEffect } from "react"; // Ensure React is imported
+import React, { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,8 +27,8 @@ import {
 import type { FilterCriteria } from "@/types/portfolio";
 
 const formSchema = z.object({
-  marketCapMin: z.coerce.number().positive().optional().nullable(), // Keep internal representation as number (hundreds of millions part)
-  volumeMin: z.coerce.number().positive().optional().nullable(),
+  marketCapMin: z.coerce.number().positive().optional().nullable(), // Internal representation: hundreds of millions
+  volumeMin: z.coerce.number().positive().optional().nullable(),    // Internal representation: millions
   interval: z.enum([
     "daily",
     "weekly",
@@ -51,8 +51,8 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for initial display
-      volumeMin: initialFilters.volumeMin ?? null,
+      marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for display
+      volumeMin: initialFilters.volumeMin ? initialFilters.volumeMin / 1_000_000 : null,        // Divide by 1M for display
       interval: initialFilters.interval,
     },
   });
@@ -60,11 +60,12 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   // Watch for changes and call onFiltersChange
   useEffect(() => {
     const subscription = form.watch((values) => {
-      // Ensure values are correctly typed before passing
+      // Ensure values are correctly typed and scaled before passing
       const marketCapValue = values.marketCapMin ? values.marketCapMin * 100_000_000 : null; // Multiply by 100M before passing
+      const volumeValue = values.volumeMin ? values.volumeMin * 1_000_000 : null; // Multiply by 1M before passing
       const typedValues: FilterCriteria = {
         marketCapMin: marketCapValue,
-        volumeMin: values.volumeMin ?? null,
+        volumeMin: volumeValue,
         interval: values.interval as FilterCriteria['interval'],
       };
       onFiltersChange(typedValues);
@@ -76,7 +77,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   useEffect(() => {
     form.reset({
        marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for reset display
-      volumeMin: initialFilters.volumeMin ?? null,
+      volumeMin: initialFilters.volumeMin ? initialFilters.volumeMin / 1_000_000 : null,          // Divide by 1M for reset display
       interval: initialFilters.interval,
     });
   }, [initialFilters, form]); // form.reset is stable, including form is good practice
@@ -112,12 +113,12 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
           name="volumeMin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Min. Volume</FormLabel>
+              <FormLabel>Min. Volume (Millions)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 100000" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value ?? ''}/>
+                <Input type="number" placeholder="e.g., 1 (for 1M)" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value ?? ''}/>
               </FormControl>
               <FormDescription>
-                Minimum average trading volume.
+                Minimum average trading volume in millions.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -159,3 +160,4 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
     </Form>
   );
 }
+

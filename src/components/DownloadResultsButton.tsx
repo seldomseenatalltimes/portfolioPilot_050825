@@ -34,8 +34,10 @@ export const generateReportHTML = (
     filters: FilterCriteria,
     uploadedFileNames: string[]
     ) => {
-    const marketCapDisplay = filters.marketCapMin ? `$${filters.marketCapMin.toLocaleString()}` : 'N/A';
-    const volumeDisplay = filters.volumeMin ? filters.volumeMin.toLocaleString() : 'N/A';
+    // Display market cap in Hundreds of Millions ($100HMs = $10B)
+    const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 100_000_000).toLocaleString()} HMs` : 'N/A';
+    // Display volume in Millions ($1M)
+    const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000_000).toLocaleString()} M` : 'N/A';
     const filesDisplay = uploadedFileNames.length > 0 ? uploadedFileNames.join(', ') : 'N/A';
 
     let htmlContent = `
@@ -127,13 +129,13 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
 
       } else if (format === "pdf") {
         const doc = new jsPDF();
-        const marketCapDisplay = filters.marketCapMin ? `$${filters.marketCapMin.toLocaleString()}` : 'N/A';
-        const volumeDisplay = filters.volumeMin ? filters.volumeMin.toLocaleString() : 'N/A';
+        const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 100_000_000).toLocaleString()} HMs` : 'N/A';
+        const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000_000).toLocaleString()} M` : 'N/A';
         const filesDisplay = uploadedFileNames.length > 0 ? uploadedFileNames.join(', ') : 'N/A';
 
         doc.setFontSize(18);
         doc.text("Portfolio Optimization Report", 105, 20, { align: 'center' });
-        
+
         doc.setFontSize(12);
         doc.text(`Date Generated: ${new Date().toLocaleString()}`, 14, 35);
         doc.text(`Optimization Method: ${method}`, 14, 42);
@@ -154,7 +156,7 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
           styles: { fontSize: 9 },
           headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
         });
-        
+
         let currentY = (doc as any).lastAutoTable.finalY + 10;
 
         doc.setFontSize(14);
@@ -174,7 +176,7 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
         });
 
         currentY = (doc as any).lastAutoTable.finalY + 10;
-        
+
         doc.setFontSize(14);
         doc.text("Asset Allocations", 14, currentY);
         autoTable(doc, {
@@ -190,6 +192,8 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
 
       } else if (format === "xlsx") {
         const wb = XLSX.utils.book_new();
+        const marketCapDisplayXlsx = filters.marketCapMin ? `$${(filters.marketCapMin / 100_000_000).toLocaleString()} HMs` : 'N/A';
+        const volumeDisplayXlsx = filters.volumeMin ? `${(filters.volumeMin / 1_000_000).toLocaleString()} M` : 'N/A';
 
         // Summary Sheet
         const summaryData = [
@@ -200,8 +204,8 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
           [],
           ["Filters Applied"],
           ["Files", uploadedFileNames.join(', ')],
-          ["Min. Market Cap", filters.marketCapMin ? `$${filters.marketCapMin.toLocaleString()}` : 'N/A'],
-          ["Min. Volume", filters.volumeMin ? filters.volumeMin.toLocaleString() : 'N/A'],
+          ["Min. Market Cap", marketCapDisplayXlsx],
+          ["Min. Volume", volumeDisplayXlsx],
           ["Data Interval", filters.interval],
           [],
           ["Portfolio Metrics"],
@@ -219,7 +223,7 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
         }));
         const wsAllocations = XLSX.utils.json_to_sheet(allocationsData);
         XLSX.utils.book_append_sheet(wb, wsAllocations, "Asset Allocations");
-        
+
         XLSX.writeFile(wb, `${filename}.xlsx`);
       }
       toast({ title: "Report Downloaded", description: `${filename}.${format} has been saved.`, variant: "default" });
@@ -255,3 +259,4 @@ export function DownloadResultsButton({ results, method, filters, uploadedFileNa
     </DropdownMenu>
   );
 }
+

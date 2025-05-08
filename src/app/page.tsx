@@ -47,7 +47,7 @@ export default function PortfolioPilotPage() {
   };
 
   const handleFiltersChange = useCallback((newFiltersCandidate: FilterCriteria) => {
-    // The value coming from FiltersForm for marketCapMin is already the full number
+    // Values coming from FiltersForm are already the full numbers (e.g., marketCapMin in actual value, not hundreds of millions)
     setFilters(currentFilters => {
       if (
         currentFilters.marketCapMin === newFiltersCandidate.marketCapMin &&
@@ -106,7 +106,7 @@ export default function PortfolioPilotPage() {
 
       const params: OptimizationParams = {
         uploadedFileNames: uploadResponse.processedFileNames,
-        filters, // filters already contains the full market cap number
+        filters, // filters already contains the full market cap/volume numbers
         method: selectedMethod,
       };
       const results = await optimizePortfolio(params);
@@ -316,11 +316,13 @@ export default function PortfolioPilotPage() {
 function paramsToString(filters: FilterCriteria, files: File[]): string {
   const fileNames = files.map(f => f.name).join(', ');
   const displayFileNames = fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A';
-  // Divide by 1 billion for display, regardless of form input unit
-  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000_000).toFixed(1)}B` : 'Any';
-  const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000).toFixed(1)}K` : 'Any';
+  // Divide by 100M for display
+  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 100_000_000).toFixed(1)}HMs` : 'Any';
+  // Divide by 1M for display
+  const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000_000).toFixed(1)}M` : 'Any';
 
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
+
 
 
