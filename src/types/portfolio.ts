@@ -26,8 +26,8 @@ const allowedIntervals = [
 // Used internally by AI flow and form validation.
 // Changed interval from z.enum to z.string with described allowed values.
 export const FilterCriteriaSchema = z.object({
-  marketCapMin: z.number().min(0).nullable().describe('Minimum market capitalization (e.g., 10000000000 for $10B). MUST be a number >= 0 or exactly `null`.'),
-  volumeMin: z.number().min(0).nullable().describe('Minimum average daily trading volume (e.g., 1000000 for 1M). MUST be a number >= 0 or exactly `null`.'),
+  marketCapMin: z.number().nullable().describe('Minimum market capitalization (e.g., 10000000000 for $10B). MUST be a number >= 0 or exactly `null`.'),
+  volumeMin: z.number().nullable().describe('Minimum average daily trading volume (e.g., 1000000 for 1M). MUST be a number >= 0 or exactly `null`.'),
   interval: z.string().describe(`The suggested data interval. MUST be one of: "${allowedIntervals.join('", "')}".`),
 });
 
@@ -132,3 +132,4 @@ export interface AllocationChartData {
   value: number; // Allocation percentage
   fill: string; // Color for the bar (assigned in the component)
 }
+
