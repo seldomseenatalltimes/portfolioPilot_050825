@@ -12,17 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette } from "lucide-react";
-import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult, TickerData } from "@/types/portfolio";
-import { optimizePortfolio, uploadTickers } from "@/lib/api"; // Mock API
+import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult } from "@/types/portfolio";
+import { optimizePortfolio, uploadTickers } from "@/lib/api"; 
 import { useToast } from "@/hooks/use-toast";
 
 export default function PortfolioPilotPage() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [filters, setFilters] = useState<FilterCriteria>({
-    marketCapMin: null, // Default to no minimum
-    volumeMin: null,    // Default to no minimum
+    marketCapMin: null, 
+    volumeMin: null,    
     interval: "daily",
   });
   const [selectedMethod, setSelectedMethod] = useState<OptimizationMethod>("Modern Portfolio Theory");
@@ -31,15 +29,14 @@ export default function PortfolioPilotPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // State for client-side hydration check
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const handleFileChange = (file: File | null) => {
-    setUploadedFile(file);
-    setOptimizationResults(null); // Reset results when file changes
+  const handleFilesChange = (newFiles: File[]) => {
+    setUploadedFiles(newFiles);
+    setOptimizationResults(null); 
     setError(null);
   };
 
@@ -52,11 +49,11 @@ export default function PortfolioPilotPage() {
   };
 
   const handleOptimize = async () => {
-    if (!uploadedFile) {
-      setError("Please upload a CSV file with ticker data.");
+    if (uploadedFiles.length === 0) {
+      setError("Please upload at least one CSV or TXT file with ticker data.");
       toast({
         title: "Error",
-        description: "No CSV file uploaded.",
+        description: "No CSV or TXT files uploaded.",
         variant: "destructive",
       });
       return;
@@ -67,16 +64,25 @@ export default function PortfolioPilotPage() {
     setOptimizationResults(null);
 
     try {
-      // In a real app, you might first send the file to the backend for processing
-      // For this mock, we assume `uploadTickers` gives us a reference or confirmation.
-      const uploadResponse = await uploadTickers(uploadedFile); 
+      const uploadResponse = await uploadTickers(uploadedFiles); 
       toast({
-        title: "File Processed",
+        title: "Files Processed",
         description: uploadResponse.message,
       });
 
+      if (uploadResponse.processedFileNames.length === 0) {
+        setError("No valid files were processed. Please check file types and try again.");
+        toast({
+          title: "Processing Error",
+          description: "No valid files could be processed.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const params: OptimizationParams = {
-        uploadedFileName: uploadResponse.fileName, // Or actual processed data
+        uploadedFileNames: uploadResponse.processedFileNames,
         filters,
         method: selectedMethod,
       };
@@ -101,7 +107,6 @@ export default function PortfolioPilotPage() {
   };
 
   if (!isClient) {
-    // Render a loading state or null during server-side rendering and initial client-side mount
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -118,7 +123,7 @@ export default function PortfolioPilotPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">PortfolioPilot</h1>
           </div>
            <a 
-            href="https://github.com/your-repo/portfolio-pilot" // Replace with actual repo link
+            href="https://github.com/your-repo/portfolio-pilot" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-sm hover:underline"
@@ -131,7 +136,6 @@ export default function PortfolioPilotPage() {
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Control Panel Column */}
           <div className="lg:col-span-1 space-y-8">
             <Card className="shadow-xl overflow-hidden">
               <CardHeader className="bg-card-foreground/5">
@@ -139,13 +143,12 @@ export default function PortfolioPilotPage() {
                   <FileText className="mr-2 h-6 w-6 text-primary" />
                   Data Input
                 </CardTitle>
-                <CardDescription>Upload your ticker data to begin.</CardDescription>
+                <CardDescription>Upload your ticker data (CSV/TXT) to begin.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
                 <FileUpload 
-                  onFileChange={handleFileChange} 
-                  uploadedFileName={uploadedFileName} 
-                  setUploadedFileName={setUploadedFileName} 
+                  files={uploadedFiles}
+                  onFilesChange={handleFilesChange} 
                 />
               </CardContent>
             </Card>
@@ -178,7 +181,7 @@ export default function PortfolioPilotPage() {
 
             <Button
               onClick={handleOptimize}
-              disabled={isLoading || !uploadedFile}
+              disabled={isLoading || uploadedFiles.length === 0}
               className="w-full text-lg py-6 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md"
               aria-label="Run portfolio optimization"
             >
@@ -191,7 +194,6 @@ export default function PortfolioPilotPage() {
             </Button>
           </div>
 
-          {/* Results Column */}
           <div className="lg:col-span-2 space-y-8">
             {isLoading && (
               <Card className="shadow-xl flex flex-col items-center justify-center p-10 min-h-[300px] bg-card">
@@ -224,7 +226,7 @@ export default function PortfolioPilotPage() {
                        Optimization Results
                     </CardTitle>
                     <CardDescription className="text-primary-foreground/80">
-                      Based on {selectedMethod} model.
+                      Based on {selectedMethod} model using {paramsToString(filters, uploadedFiles)}.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
@@ -240,7 +242,7 @@ export default function PortfolioPilotPage() {
                   <TrendingUp className="h-16 w-16 text-muted-foreground mb-4" />
                   <p className="text-lg font-medium text-foreground">Ready to Optimize</p>
                   <p className="text-sm text-muted-foreground text-center">
-                    Upload your CSV, set filters, choose a method, and click "Optimize Portfolio" to see results.
+                    Upload your CSV/TXT files, set filters, choose a method, and click "Optimize Portfolio" to see results.
                   </p>
                 </Card>
              )}
@@ -253,4 +255,10 @@ export default function PortfolioPilotPage() {
       </footer>
     </div>
   );
+}
+
+// Helper function to display parameters in card description
+function paramsToString(filters: FilterCriteria, files: File[]): string {
+  const fileNames = files.map(f => f.name).join(', ');
+  return `files: ${fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A'}. Filters: Market Cap Min: ${filters.marketCapMin ?? 'Any'}, Volume Min: ${filters.volumeMin ?? 'Any'}, Interval: ${filters.interval}.`;
 }

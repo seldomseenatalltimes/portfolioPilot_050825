@@ -57,7 +57,9 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
     allocations = allocations.map(alloc => ({ ...alloc, allocation: parseFloat(equalAllocation.toFixed(2)) }));
     // Recalculate last asset allocation to ensure sum is 100
     let sum = allocations.slice(0, -1).reduce((acc, curr) => acc + curr.allocation, 0);
-    allocations[allocations.length - 1].allocation = parseFloat((100 - sum).toFixed(2));
+    if (allocations.length > 0) {
+      allocations[allocations.length - 1].allocation = parseFloat((100 - sum).toFixed(2));
+    }
   }
   
   // Simulate failure sometimes
@@ -72,15 +74,37 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
   };
 }
 
-// Mock for file upload processing, in a real scenario this would send the file to the backend.
-export async function uploadTickers(file: File): Promise<{fileName: string, message: string}> {
+// Mock for file upload processing, in a real scenario this would send the files to the backend.
+export async function uploadTickers(files: File[]): Promise<{processedFileNames: string[], message: string}> {
   await delay(1000);
-  console.log('Uploading file:', file.name, file.size, file.type);
   
-  if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-    throw new Error("Invalid file type. Please upload a CSV or TXT file.");
+  const processedFileNames: string[] = [];
+  let allFilesValid = true;
+
+  for (const file of files) {
+    console.log('Uploading file:', file.name, file.size, file.type);
+    if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
+      allFilesValid = false;
+      // Continue processing other files or throw an error immediately
+      // For this mock, we'll note it and continue
+      console.warn(`Invalid file type for ${file.name}. Please upload a CSV or TXT file.`);
+    } else {
+      processedFileNames.push(file.name);
+    }
   }
 
+  if (processedFileNames.length === 0 && files.length > 0 && !allFilesValid) {
+     throw new Error("Invalid file type(s). Please upload CSV or TXT files.");
+  }
+  
+  if (processedFileNames.length === 0 && files.length === 0) {
+    return { processedFileNames: [], message: "No files to process." };
+  }
+
+
   // Simulate success
-  return { fileName: file.name, message: `File "${file.name}" processed successfully.` };
+  return { 
+    processedFileNames, 
+    message: `${processedFileNames.length} file(s) processed successfully: ${processedFileNames.join(', ')}.` 
+  };
 }

@@ -26,7 +26,7 @@ export type OptimizationMethod =
   | 'Equal Weighting';
 
 export interface OptimizationParams {
-  uploadedFileName: string; // Or actual processed ticker data
+  uploadedFileNames: string[]; // Or actual processed ticker data
   filters: FilterCriteria;
   method: OptimizationMethod;
 }
