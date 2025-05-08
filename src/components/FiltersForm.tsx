@@ -26,9 +26,10 @@ import {
 } from "@/components/ui/select";
 import type { FilterCriteria } from "@/types/portfolio";
 
+// Updated schema: Replaced .positive() with .min(0)
 const formSchema = z.object({
-  marketCapMin: z.coerce.number().positive().optional().nullable(), // Internal representation: hundreds of millions
-  volumeMin: z.coerce.number().positive().optional().nullable(),    // Internal representation: millions
+  marketCapMin: z.coerce.number().min(0).optional().nullable(), // Internal representation: hundreds of millions
+  volumeMin: z.coerce.number().min(0).optional().nullable(),    // Internal representation: millions
   interval: z.enum([
     "daily",
     "weekly",
@@ -61,8 +62,13 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   useEffect(() => {
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed and scaled before passing
-      const marketCapValue = values.marketCapMin ? values.marketCapMin * 100_000_000 : null; // Multiply by 100M before passing
-      const volumeValue = values.volumeMin ? values.volumeMin * 1_000_000 : null; // Multiply by 1M before passing
+      // Validate here or rely on Zod schema used in form
+      const marketCapInput = values.marketCapMin ?? null;
+      const volumeInput = values.volumeMin ?? null;
+
+      const marketCapValue = marketCapInput !== null && marketCapInput >= 0 ? marketCapInput * 100_000_000 : null; // Multiply by 100M before passing
+      const volumeValue = volumeInput !== null && volumeInput >= 0 ? volumeInput * 1_000_000 : null; // Multiply by 1M before passing
+
       const typedValues: FilterCriteria = {
         marketCapMin: marketCapValue,
         volumeMin: volumeValue,

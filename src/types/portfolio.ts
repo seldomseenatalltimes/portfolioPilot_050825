@@ -11,9 +11,10 @@ export interface TickerData {
 
 // Base schema matching the FilterCriteria type, including nullable numbers
 // Used internally by AI flow and form validation.
+// Replaced .positive() with .min(0) to avoid exclusiveMinimum issues with Gemini API
 export const FilterCriteriaSchema = z.object({
-  marketCapMin: z.number().positive().nullable().describe('The minimum market capitalization as a full number (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use null if not applicable.'),
-  volumeMin: z.number().positive().nullable().describe('The minimum average daily trading volume as a full number (e.g., 1000000 for 1 Million, 500000 for 500k). Use null if not applicable.'),
+  marketCapMin: z.number().min(0).nullable().describe('The minimum market capitalization as a full number (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use null if not applicable.'),
+  volumeMin: z.number().min(0).nullable().describe('The minimum average daily trading volume as a full number (e.g., 1000000 for 1 Million, 500000 for 500k). Use null if not applicable.'),
   interval: z.enum([
     "daily",
     "weekly",
@@ -55,13 +56,6 @@ export const GetFilterSuggestionsOutputSchema = z.object({
 });
 // Output type for the AI filter suggestions flow
 export type GetFilterSuggestionsOutput = z.infer<typeof GetFilterSuggestionsOutputSchema>;
-
-// Combined type for a suggestion used in the UI, adding strategy/description to FilterCriteria
-export type SuggestedFilterCriteria = FilterCriteria & {
-  strategy: string;
-  description: string;
-};
-
 
 // --- Portfolio Optimization Types ---
 
@@ -121,7 +115,7 @@ export interface StockData {
   high: number;
   low: number;
   close: number;
-  adjClose: number;
+  adjClose: number; // Changed from adjustedClose for consistency with API examples
   volume: number;
 }
 
