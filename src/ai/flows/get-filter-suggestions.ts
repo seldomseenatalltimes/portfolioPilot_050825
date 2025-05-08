@@ -4,64 +4,25 @@
  * @fileOverview Provides AI-generated filter suggestions for investment strategies.
  *
  * - getFilterSuggestions - Function to retrieve filter suggestions.
+ * - GetFilterSuggestionsInput - Input type for the flow.
+ * - GetFilterSuggestionsOutput - Output type for the flow.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { FilterCriteria } from '@/types/portfolio'; // Import base type for internal use
+import {
+    GetFilterSuggestionsInputSchema, // Import schema for internal use
+    GetFilterSuggestionsOutputSchema, // Import schema for internal use
+    type GetFilterSuggestionsInput, // Import type for export
+    type GetFilterSuggestionsOutput // Import type for export
+} from '@/types/portfolio';
 
-// --- Internal Schema Definitions ---
-
-// Base schema matching the FilterCriteria type, including nullable numbers
-const FilterCriteriaSchema = z.object({
-  marketCapMin: z.number().positive().nullable().describe('The minimum market capitalization as a full number (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use null if not applicable.'),
-  volumeMin: z.number().positive().nullable().describe('The minimum average daily trading volume as a full number (e.g., 1000000 for 1 Million, 500000 for 500k). Use null if not applicable.'),
-  interval: z.enum([
-    "daily",
-    "weekly",
-    "monthly",
-    "quarterly",
-    "yearly",
-    "1y",
-    "2y",
-    "5y",
-    "10y",
-  ]).describe('The suggested data interval (must be one of the listed values).'),
-});
-
-// Define the input schema (currently empty, can be extended later)
-const GetFilterSuggestionsInputSchema = z.object({
-  // Optional fields like riskTolerance, goals could be added here
-});
-// Input type used internally by the flow
-type GetFilterSuggestionsInputInternal = z.infer<typeof GetFilterSuggestionsInputSchema>;
-
-
-// Define the schema for a single suggestion
-// Exporting this specifically for type inference in src/types/portfolio.ts
-export const SuggestedFilterSchema = z.object({
-  strategy: z.string().describe('Name of the investment strategy (e.g., Large-Cap Growth, Small-Cap Value).'),
-  description: z.string().describe('A brief explanation of the strategy and why these filters are suggested.'),
-  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are full numbers or null.'),
-});
-
-
-// Define the output schema containing an array of suggestions
-// Exporting this specifically for type inference in src/types/portfolio.ts
-export const GetFilterSuggestionsOutputSchema = z.object({
-  suggestions: z.array(SuggestedFilterSchema).min(3).max(5).describe('An array of 3-5 diverse investment strategy filter suggestions.'),
-});
-// Output type used internally by the flow
-type GetFilterSuggestionsOutputInternal = z.infer<typeof GetFilterSuggestionsOutputSchema>;
-
-// --- End Internal Schema Definitions ---
-
-
-// Define the Genkit prompt
+// --- Define the Genkit prompt ---
+// Uses schemas imported from '@/types/portfolio'
 const suggestionsPrompt = ai.definePrompt({
   name: 'getFilterSuggestionsPrompt',
-  input: { schema: GetFilterSuggestionsInputSchema },
-  output: { schema: GetFilterSuggestionsOutputSchema },
+  input: { schema: GetFilterSuggestionsInputSchema }, // Use imported schema
+  output: { schema: GetFilterSuggestionsOutputSchema }, // Use imported schema
   prompt: `You are a helpful financial assistant. Your task is to suggest filter settings for different common investment strategies based on market capitalization, trading volume, and data interval.
 
 Provide 3 to 5 diverse suggestions suitable for a portfolio analysis tool. For each suggestion, include:
@@ -103,12 +64,16 @@ Ensure the output strictly adheres to the JSON schema provided for GetFilterSugg
 `,
 });
 
-// Define the Genkit flow
+// --- Define the Genkit flow ---
+// Internal type alias for clarity within the flow definition
+type GetFilterSuggestionsInputInternal = z.infer<typeof GetFilterSuggestionsInputSchema>;
+type GetFilterSuggestionsOutputInternal = z.infer<typeof GetFilterSuggestionsOutputSchema>;
+
 const getFilterSuggestionsFlow = ai.defineFlow(
   {
     name: 'getFilterSuggestionsFlow',
-    inputSchema: GetFilterSuggestionsInputSchema,
-    outputSchema: GetFilterSuggestionsOutputSchema,
+    inputSchema: GetFilterSuggestionsInputSchema, // Use imported schema
+    outputSchema: GetFilterSuggestionsOutputSchema, // Use imported schema
   },
   async (input: GetFilterSuggestionsInputInternal): Promise<GetFilterSuggestionsOutputInternal> => {
     const { output } = await suggestionsPrompt(input);
@@ -126,11 +91,15 @@ const getFilterSuggestionsFlow = ai.defineFlow(
   }
 );
 
-// Import the correct types from the shared types file for the exported function signature
-import type { GetFilterSuggestionsInput, GetFilterSuggestionsOutput } from '@/types/portfolio';
+
+// --- Exported Function and Types ---
 
 // Exported wrapper function for UI consumption
+// Uses the imported TypeScript types for its signature
 export async function getFilterSuggestions(input: GetFilterSuggestionsInput): Promise<GetFilterSuggestionsOutput> {
   // Cast the input if necessary, though here it's currently an empty object so it matches
   return getFilterSuggestionsFlow(input as GetFilterSuggestionsInputInternal);
 }
+
+// Re-export the input/output types for convenience
+export type { GetFilterSuggestionsInput, GetFilterSuggestionsOutput };

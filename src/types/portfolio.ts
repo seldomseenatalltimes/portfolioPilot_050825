@@ -1,6 +1,5 @@
 // src/types/portfolio.ts
-import type { z } from 'genkit';
-import type { GetFilterSuggestionsOutputSchema, SuggestedFilterSchema } from '@/ai/flows/get-filter-suggestions'; // Import schema types only for inference
+import { z } from 'zod'; // Import Zod here
 
 // Represents raw data from uploaded CSV/TXT files
 export interface TickerData {
@@ -8,21 +7,63 @@ export interface TickerData {
   [key: string]: any; // Allow other CSV fields
 }
 
-// Criteria used to filter tickers before fetching data
-export interface FilterCriteria {
-  marketCapMin?: number | null; // Stored as full number (e.g., 10_000_000_000 for $10B)
-  volumeMin?: number | null;    // Stored as full number (e.g., 1_000_000 for 1M)
-  interval:
-    | 'daily'
-    | 'weekly'
-    | 'monthly'
-    | 'quarterly'
-    | 'yearly'
-    | '1y'
-    | '2y'
-    | '5y'
-    | '10y';
-}
+// --- Filter Criteria Schemas and Types ---
+
+// Base schema matching the FilterCriteria type, including nullable numbers
+// Used internally by AI flow and form validation.
+export const FilterCriteriaSchema = z.object({
+  marketCapMin: z.number().positive().nullable().describe('The minimum market capitalization as a full number (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use null if not applicable.'),
+  volumeMin: z.number().positive().nullable().describe('The minimum average daily trading volume as a full number (e.g., 1000000 for 1 Million, 500000 for 500k). Use null if not applicable.'),
+  interval: z.enum([
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "yearly",
+    "1y",
+    "2y",
+    "5y",
+    "10y",
+  ]).describe('The suggested data interval (must be one of the listed values).'),
+});
+
+// Criteria used to filter tickers before fetching data (TypeScript type)
+export type FilterCriteria = z.infer<typeof FilterCriteriaSchema>;
+
+
+// --- AI Filter Suggestion Schemas and Types ---
+
+// Define the input schema for the AI flow (currently empty)
+export const GetFilterSuggestionsInputSchema = z.object({
+  // Optional fields like riskTolerance, goals could be added here
+});
+export type GetFilterSuggestionsInput = z.infer<typeof GetFilterSuggestionsInputSchema>;
+
+
+// Define the schema for a single suggestion
+export const SuggestedFilterSchema = z.object({
+  strategy: z.string().describe('Name of the investment strategy (e.g., Large-Cap Growth, Small-Cap Value).'),
+  description: z.string().describe('A brief explanation of the strategy and why these filters are suggested.'),
+  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are full numbers or null.'),
+});
+export type SuggestedFilter = z.infer<typeof SuggestedFilterSchema>;
+
+
+// Define the output schema containing an array of suggestions
+export const GetFilterSuggestionsOutputSchema = z.object({
+  suggestions: z.array(SuggestedFilterSchema).min(3).max(5).describe('An array of 3-5 diverse investment strategy filter suggestions.'),
+});
+// Output type for the AI filter suggestions flow
+export type GetFilterSuggestionsOutput = z.infer<typeof GetFilterSuggestionsOutputSchema>;
+
+// Combined type for a suggestion used in the UI, adding strategy/description to FilterCriteria
+export type SuggestedFilterCriteria = FilterCriteria & {
+  strategy: string;
+  description: string;
+};
+
+
+// --- Portfolio Optimization Types ---
 
 // Supported portfolio optimization methods
 export type OptimizationMethod =
@@ -90,23 +131,3 @@ export interface AllocationChartData {
   value: number; // Allocation percentage
   fill: string; // Color for the bar (assigned in the component)
 }
-
-
-// --- AI Filter Suggestion Types ---
-
-// Input type for the AI filter suggestions flow (currently empty)
-export interface GetFilterSuggestionsInput {
-  // Optional fields like riskTolerance, goals could be added here
-}
-
-// Type for a single AI suggestion, matching the Zod schema output
-export type SuggestedFilter = z.infer<typeof SuggestedFilterSchema>;
-
-// Output type for the AI filter suggestions flow, matching the Zod schema output
-export type GetFilterSuggestionsOutput = z.infer<typeof GetFilterSuggestionsOutputSchema>;
-
-// Combined type for a suggestion used in the UI, adding strategy/description to FilterCriteria
-export type SuggestedFilterCriteria = FilterCriteria & {
-  strategy: string;
-  description: string;
-};
