@@ -1,5 +1,5 @@
 // src/lib/api.ts
-import type { OptimizationParams, OptimizationResult, RiskReturnChartData, AssetAllocation, PortfolioMetrics } from '@/types/portfolio';
+import type { OptimizationParams, OptimizationResult, RiskReturnChartData, AssetAllocation, PortfolioMetrics, OptimizationApiResponse } from '@/types/portfolio';
 import { getHistoricalData } from "@/services/stock_data"; // Corrected import path
 import { yfinanceRateLimiter, delay as rateLimitDelay } from '@/lib/rate-limiter'; // Import the rate limiter and renamed delay
 
@@ -49,7 +49,7 @@ function generateEfficientFrontier(): RiskReturnChartData[] {
 }
 
 
-export async function optimizePortfolio(params: OptimizationParams): Promise<OptimizationResult> {
+export async function optimizePortfolio(params: OptimizationParams): Promise<OptimizationApiResponse> {
   console.log('Optimizing portfolio with params:', params);
 
   // --- Rate Limiter Integration Point ---
@@ -57,6 +57,7 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
   // This example simulates fetching data for a limited number of mock assets.
   const tickersToFetch = MOCK_ASSETS.slice(0, 5); // Simulate fetching for first 5 assets
   const allStockData = {};
+  let rateLimitWarning: string | undefined = undefined;
 
   try {
       console.log(`Fetching data for tickers: ${tickersToFetch.join(', ')} using rate-limited fetch...`);
@@ -64,15 +65,20 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
           console.log(`Attempting to fetch data for ${ticker}`);
           // Use the rate-limited function. It will automatically handle delays if needed.
           // In a real app, use the actual tickers from processedFileNames
+          // We assume getHistoricalData handles its own errors internally now or throws them
           const stockData = await rateLimitedFetchStockData(ticker, params.filters.interval);
           allStockData[ticker] = stockData;
-          console.log(`Successfully fetched data for ${ticker} (or used mock)`);
+          console.log(`Successfully fetched data for ${ticker} (or used mock/fallback)`);
       }
       console.log("Finished fetching all required stock data.");
+
+      // Check rate limit status *after* the fetching loop
+      rateLimitWarning = yfinanceRateLimiter.checkThresholds();
+
   } catch (error) {
        console.error("Error during rate-limited data fetching:", error);
+       // Specific handling for rate limit errors if the wrapper throws them
        if (error instanceof Error && error.message.includes('Rate limit reached')) {
-           // Specific handling for rate limit errors caught by the API function itself (if it throws)
            throw error; // Re-throw the specific rate limit error
        }
        // Handle other potential errors during fetching
@@ -106,11 +112,16 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
     }
   }
 
+  const results: OptimizationResult = {
+      allocations,
+      metrics,
+      efficientFrontierData
+  };
 
+  // Return both results and any warning
   return {
-    allocations,
-    metrics,
-    efficientFrontierData
+      results,
+      warning: rateLimitWarning
   };
 }
 
@@ -154,3 +165,4 @@ export async function uploadTickers(files: File[]): Promise<{processedFileNames:
     message
   };
 }
+

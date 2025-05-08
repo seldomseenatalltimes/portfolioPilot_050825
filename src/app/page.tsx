@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw } from "lucide-react";
-import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult } from "@/types/portfolio";
+import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult, OptimizationApiResponse } from "@/types/portfolio"; // Added OptimizationApiResponse
 import { optimizePortfolio, uploadTickers } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -109,13 +109,25 @@ export default function PortfolioPilotPage() {
         filters, // filters already contains the full market cap/volume numbers
         method: selectedMethod,
       };
-      const results = await optimizePortfolio(params);
-      setOptimizationResults(results);
+      // Use the new API response type
+      const apiResponse: OptimizationApiResponse = await optimizePortfolio(params);
+      setOptimizationResults(apiResponse.results);
       toast({
         title: "Optimization Successful",
         description: `Portfolio optimized using ${selectedMethod}.`,
         variant: "default",
       });
+
+      // Check for and display rate limit warnings
+      if (apiResponse.warning) {
+          toast({
+              title: "Rate Limit Warning",
+              description: apiResponse.warning,
+              variant: "destructive", // Or a custom "warning" variant if available
+              duration: 9000, // Keep warning visible longer
+          });
+      }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred during optimization.";
       setError(errorMessage);
@@ -139,6 +151,11 @@ export default function PortfolioPilotPage() {
       title: "Form Reset",
       description: "All inputs and results have been cleared.",
     });
+     // Also reset the file input visually if possible
+     const fileInput = document.getElementById('ticker-upload') as HTMLInputElement | null;
+     if (fileInput) {
+       fileInput.value = '';
+     }
   };
 
   if (!isClient) {
@@ -158,7 +175,7 @@ export default function PortfolioPilotPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">PortfolioPilot</h1>
           </div>
            <a
-            href="https://github.com/your-repo/portfolio-pilot"
+            href="https://github.com/your-repo/portfolio-pilot" // Update this link
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm hover:underline"
@@ -323,6 +340,4 @@ function paramsToString(filters: FilterCriteria, files: File[]): string {
 
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
-
-
 

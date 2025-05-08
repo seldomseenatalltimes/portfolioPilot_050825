@@ -14,7 +14,7 @@ interface RateLimiterOptions {
 interface RequestPermissionResult {
   allowed: boolean;
   delayMs?: number; // Suggested delay in milliseconds if not allowed
-  warning?: string; // Warning message if limits are close
+  warning?: string; // Warning message if limits are close (generated *before* the request)
 }
 
 const DEFAULT_WARNING_THRESHOLD = 0.1; // Warn if less than 10% quota remaining
@@ -34,6 +34,7 @@ class RateLimiter {
 
     const warningThreshold =
       options.warningThresholdPercent ?? DEFAULT_WARNING_THRESHOLD;
+    // Calculate the count at which to start warning (e.g., 90% of limit)
     this.warningThresholdHourly = this.hourlyLimit * (1 - warningThreshold);
     this.warningThresholdDaily = this.dailyLimit * (1 - warningThreshold);
   }
@@ -77,6 +78,41 @@ class RateLimiter {
     return Math.max(0, timeUntilExpiry) + 100; // Add a small buffer
   }
 
+   /**
+   * Checks if current usage is near or exceeding limits and returns a warning message.
+   * This does NOT consume a request quota.
+   * @returns A warning message string if thresholds are met, otherwise undefined.
+   */
+  public checkThresholds(): string | undefined {
+    const now = Date.now();
+    this.cleanupTimestamps(now);
+
+    const hourlyCount = this.hourlyRequestTimestamps.length;
+    const dailyCount = this.dailyRequestTimestamps.length;
+    let warning: string | undefined;
+
+    if (hourlyCount >= this.hourlyLimit) {
+       warning = `Hourly rate limit exceeded (${hourlyCount}/${this.hourlyLimit}).`;
+    } else if (hourlyCount >= this.warningThresholdHourly) {
+       warning = `Approaching hourly rate limit (${hourlyCount}/${this.hourlyLimit}).`;
+    }
+
+    if (dailyCount >= this.dailyLimit) {
+        const dailyWarning = `Daily rate limit exceeded (${dailyCount}/${this.dailyLimit}).`;
+         warning = warning ? `${warning} ${dailyWarning}` : dailyWarning;
+    } else if (dailyCount >= this.warningThresholdDaily) {
+       const dailyWarning = `Approaching daily rate limit (${dailyCount}/${this.dailyLimit}).`;
+       warning = warning ? `${warning} ${dailyWarning}` : dailyWarning;
+    }
+
+     if (warning) {
+        console.warn("Rate Limit Check:", warning);
+     }
+
+    return warning;
+  }
+
+
   /**
    * Checks if a request is allowed based on current limits and records it if allowed.
    * @returns An object indicating if the request is allowed, a potential warning, and a suggested delay if not allowed.
@@ -88,7 +124,7 @@ class RateLimiter {
     const hourlyCount = this.hourlyRequestTimestamps.length;
     const dailyCount = this.dailyRequestTimestamps.length;
 
-    // Check limits
+    // Check limits first
     if (hourlyCount >= this.hourlyLimit) {
       console.warn(
         `Rate Limit Exceeded: Hourly limit of ${this.hourlyLimit} reached.`
@@ -96,26 +132,22 @@ class RateLimiter {
       return {
         allowed: false,
         delayMs: this.calculateDelay('hourly', now),
+        warning: `Hourly rate limit exceeded (${hourlyCount}/${this.hourlyLimit}).` // Add warning here too
       };
     }
     if (dailyCount >= this.dailyLimit) {
       console.warn(
         `Rate Limit Exceeded: Daily limit of ${this.dailyLimit} reached.`
       );
-      return { allowed: false, delayMs: this.calculateDelay('daily', now) };
+      return {
+        allowed: false,
+        delayMs: this.calculateDelay('daily', now),
+        warning: `Daily rate limit exceeded (${dailyCount}/${this.dailyLimit}).` // Add warning here too
+       };
     }
 
-    // Check warning thresholds
-    let warning: string | undefined;
-    if (hourlyCount >= this.warningThresholdHourly) {
-      warning = `Rate Limit Warning: Approaching hourly limit (${hourlyCount}/${this.hourlyLimit}).`;
-      console.warn(warning);
-    }
-    if (dailyCount >= this.warningThresholdDaily) {
-      const dailyWarning = `Rate Limit Warning: Approaching daily limit (${dailyCount}/${this.dailyLimit}).`;
-      console.warn(dailyWarning);
-      warning = warning ? `${warning} ${dailyWarning}` : dailyWarning;
-    }
+    // Check warning thresholds *before* adding the new request
+    let warning = this.checkThresholds(); // Use the dedicated check method
 
     // Allow and record request
     this.hourlyRequestTimestamps.push(now);
@@ -123,7 +155,7 @@ class RateLimiter {
 
     console.log(`Rate Limiter: Request allowed. Counts - Hourly: ${hourlyCount + 1}/${this.hourlyLimit}, Daily: ${dailyCount + 1}/${this.dailyLimit}`);
 
-
+    // Return allowed status and any *pre-request* warning
     return { allowed: true, warning };
   }
 
@@ -144,9 +176,11 @@ class RateLimiter {
                 permission = this.requestPermission(); // Re-check after delay
             }
 
+             // Log the warning if one was generated just before this request was allowed
              if (permission.warning) {
-                console.warn("Rate Limiter Warning:", permission.warning);
-                // Optionally handle the warning further if needed (e.g., slow down subsequent requests proactively)
+                console.warn("Rate Limiter Pre-Request Warning:", permission.warning);
+                // Note: This warning is captured *before* the successful request is made.
+                // The check after the loop in optimizePortfolio provides the *post-request* status.
              }
 
              // Permission granted (or obtained after delay), execute the function
