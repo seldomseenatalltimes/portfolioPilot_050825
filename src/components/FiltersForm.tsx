@@ -1,7 +1,7 @@
 // src/components/FiltersForm.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react"; // Ensure React is imported
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -58,7 +58,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   });
 
   // Watch for changes and call onFiltersChange
-  React.useEffect(() => {
+  useEffect(() => {
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed before passing
       const typedValues: FilterCriteria = {
@@ -70,6 +70,15 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
     });
     return () => subscription.unsubscribe();
   }, [form, onFiltersChange]);
+
+  // Effect to reset the form when initialFilters prop changes
+  useEffect(() => {
+    form.reset({
+      marketCapMin: initialFilters.marketCapMin ?? null,
+      volumeMin: initialFilters.volumeMin ?? null,
+      interval: initialFilters.interval,
+    });
+  }, [initialFilters, form]); // form.reset is stable, including form is good practice
 
 
   // This form doesn't need its own submit button if changes are propagated live.
@@ -119,7 +128,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
           render={({ field }) => (
             <FormItem>
               <FormLabel>Data Interval</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} /* Control value for reset */ >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select data interval" />

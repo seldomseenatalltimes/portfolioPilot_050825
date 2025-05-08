@@ -2,7 +2,7 @@
 "use client";
 
 import type * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { FiltersForm } from "@/components/FiltersForm";
 import { OptimizerSelect } from "@/components/OptimizerSelect";
@@ -11,19 +11,23 @@ import { Charts } from "@/components/Charts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette } from "lucide-react";
+import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw } from "lucide-react";
 import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult } from "@/types/portfolio";
 import { optimizePortfolio, uploadTickers } from "@/lib/api"; 
 import { useToast } from "@/hooks/use-toast";
 
+const initialFiltersState: FilterCriteria = {
+  marketCapMin: null,
+  volumeMin: null,
+  interval: "daily",
+};
+
+const initialSelectedMethodState: OptimizationMethod = "Modern Portfolio Theory";
+
 export default function PortfolioPilotPage() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [filters, setFilters] = useState<FilterCriteria>({
-    marketCapMin: null, 
-    volumeMin: null,    
-    interval: "daily",
-  });
-  const [selectedMethod, setSelectedMethod] = useState<OptimizationMethod>("Modern Portfolio Theory");
+  const [filters, setFilters] = useState<FilterCriteria>(initialFiltersState);
+  const [selectedMethod, setSelectedMethod] = useState<OptimizationMethod>(initialSelectedMethodState);
   const [optimizationResults, setOptimizationResults] = useState<OptimizationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +40,14 @@ export default function PortfolioPilotPage() {
 
   const handleFilesChange = (newFiles: File[]) => {
     setUploadedFiles(newFiles);
-    setOptimizationResults(null); 
-    setError(null);
+    // If files are changed, it's good practice to clear old results
+    if (optimizationResults) setOptimizationResults(null); 
+    if (error) setError(null);
   };
 
-  const handleFiltersChange = (newFilters: FilterCriteria) => {
+  const handleFiltersChange = useCallback((newFilters: FilterCriteria) => {
     setFilters(newFilters);
-  };
+  }, []);
 
   const handleMethodChange = (method: OptimizationMethod) => {
     setSelectedMethod(method);
@@ -70,8 +75,8 @@ export default function PortfolioPilotPage() {
         description: uploadResponse.message,
       });
 
-      if (uploadResponse.processedFileNames.length === 0) {
-        setError("No valid files were processed. Please check file types and try again.");
+      if (uploadResponse.processedFileNames.length === 0 && uploadedFiles.length > 0) {
+        setError("No valid files were processed. Please check file types (CSV/TXT) and try again.");
         toast({
           title: "Processing Error",
           description: "No valid files could be processed.",
@@ -80,6 +85,13 @@ export default function PortfolioPilotPage() {
         setIsLoading(false);
         return;
       }
+      
+      if (uploadResponse.processedFileNames.length === 0) {
+         setError("No files provided for optimization.");
+         setIsLoading(false);
+         return;
+      }
+
 
       const params: OptimizationParams = {
         uploadedFileNames: uploadResponse.processedFileNames,
@@ -104,6 +116,20 @@ export default function PortfolioPilotPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleReset = () => {
+    setUploadedFiles([]);
+    setFilters(initialFiltersState); // This will trigger re-render of FiltersForm with new initialFilters
+    setSelectedMethod(initialSelectedMethodState);
+    setOptimizationResults(null);
+    setError(null);
+    // FileUpload component's onFilesChange([]) will be triggered by setUploadedFiles([]),
+    // which should handle clearing the native file input if implemented correctly inside FileUpload.
+    toast({
+      title: "Form Reset",
+      description: "All inputs and results have been cleared.",
+    });
   };
 
   if (!isClient) {
@@ -178,20 +204,31 @@ export default function PortfolioPilotPage() {
                 <OptimizerSelect selectedMethod={selectedMethod} onMethodChange={handleMethodChange} />
               </CardContent>
             </Card>
-
-            <Button
-              onClick={handleOptimize}
-              disabled={isLoading || uploadedFiles.length === 0}
-              className="w-full text-lg py-6 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md"
-              aria-label="Run portfolio optimization"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <TrendingUp className="mr-2 h-5 w-5" />
-              )}
-              Optimize Portfolio
-            </Button>
+            
+            <div className="space-y-4">
+              <Button
+                onClick={handleOptimize}
+                disabled={isLoading || uploadedFiles.length === 0}
+                className="w-full text-lg py-6 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md"
+                aria-label="Run portfolio optimization"
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <TrendingUp className="mr-2 h-5 w-5" />
+                )}
+                Optimize Portfolio
+              </Button>
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="w-full text-md py-5 shadow-sm border-primary/50 hover:bg-primary/10"
+                aria-label="Reset all inputs and results"
+              >
+                <RotateCcw className="mr-2 h-5 w-5 text-primary" />
+                Reset All
+              </Button>
+            </div>
           </div>
 
           <div className="lg:col-span-2 space-y-8">
