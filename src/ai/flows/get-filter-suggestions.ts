@@ -29,8 +29,8 @@ Provide 3 to 5 diverse suggestions suitable for a portfolio analysis tool. For e
 1.  A clear 'strategy' name (e.g., "Large-Cap Growth", "Small-Cap Value", "Dividend Focus", "Low Volatility", "Technology Sector").
 2.  A brief 'description' explaining the strategy and the reasoning behind the suggested filters (1-2 sentences).
 3.  The specific 'filters' object including:
-    *   'marketCapMin': The minimum market capitalization as a **full number** (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use \`null\` if no minimum is typically applied for the strategy.
-    *   'volumeMin': The minimum average daily trading volume as a **full number** (e.g., 1000000 for 1 Million, 500000 for 500k). Use \`null\` if no minimum is typically applied.
+    *   'marketCapMin': The minimum market capitalization as a **full number** (e.g., 10000000000 for $10 Billion). If no minimum applies, the value MUST be exactly \`null\`. **Do not use 0 or omit the field if no minimum applies.**
+    *   'volumeMin': The minimum average daily trading volume as a **full number** (e.g., 1000000 for 1 Million). If no minimum applies, the value MUST be exactly \`null\`. **Do not use 0 or omit the field if no minimum applies.**
     *   'interval': The recommended data interval (must be one of: "daily", "weekly", "monthly", "quarterly", "yearly", "1y", "2y", "5y", "10y"). Choose an interval appropriate for the strategy's time horizon (e.g., daily/weekly for short-term, monthly/yearly for long-term).
 
 Example Output Structure (must follow the JSON schema exactly):
@@ -47,6 +47,15 @@ Example Output Structure (must follow the JSON schema exactly):
       }
     },
     {
+       "strategy": "Income Focus (Any Cap)",
+       "description": "Targets established companies paying dividends, often found across various market caps. Liquidity (volume) is still important.",
+       "filters": {
+         "marketCapMin": null,
+         "volumeMin": 500000,
+         "interval": "monthly"
+       }
+    },
+    {
       "strategy": "Small-Cap Value",
       "description": "Targets smaller companies potentially undervalued by the market. Lower market cap threshold, volume might be less critical.",
       "filters": {
@@ -60,7 +69,7 @@ Example Output Structure (must follow the JSON schema exactly):
 }
 \`\`\`
 
-Ensure the output strictly adheres to the JSON schema provided for GetFilterSuggestionsOutput. Only provide numerical values or \`null\` for marketCapMin and volumeMin. Select intervals from the allowed list.
+Ensure the output strictly adheres to the JSON schema provided for GetFilterSuggestionsOutput. For marketCapMin and volumeMin, provide either a numerical value >= 0 OR the JSON value \`null\`. Select intervals only from the allowed list ["daily", "weekly", "monthly", "quarterly", "yearly", "1y", "2y", "5y", "10y"].
 `,
 });
 
@@ -86,6 +95,17 @@ const getFilterSuggestionsFlow = ai.defineFlow(
     if (!output.suggestions || output.suggestions.length === 0) {
          throw new Error('AI returned no suggestions.');
     }
+
+    // Explicitly validate nullability for marketCapMin/volumeMin as per schema
+    output.suggestions.forEach(suggestion => {
+      if (typeof suggestion.filters.marketCapMin !== 'number' && suggestion.filters.marketCapMin !== null) {
+        throw new Error(`AI returned invalid type for marketCapMin in strategy "${suggestion.strategy}": expected number or null.`);
+      }
+       if (typeof suggestion.filters.volumeMin !== 'number' && suggestion.filters.volumeMin !== null) {
+        throw new Error(`AI returned invalid type for volumeMin in strategy "${suggestion.strategy}": expected number or null.`);
+      }
+    });
+
 
     return output;
   }

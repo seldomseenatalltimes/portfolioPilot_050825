@@ -13,8 +13,8 @@ export interface TickerData {
 // Used internally by AI flow and form validation.
 // Replaced .positive() with .min(0) to avoid exclusiveMinimum issues with Gemini API
 export const FilterCriteriaSchema = z.object({
-  marketCapMin: z.number().min(0).nullable().describe('The minimum market capitalization as a full number (e.g., 10000000000 for $10 Billion, 500000000 for $500 Million). Use null if not applicable.'),
-  volumeMin: z.number().min(0).nullable().describe('The minimum average daily trading volume as a full number (e.g., 1000000 for 1 Million, 500000 for 500k). Use null if not applicable.'),
+  marketCapMin: z.number().min(0).nullable().describe('Minimum market capitalization (e.g., 10000000000 for $10B). MUST be a number >= 0 or exactly `null`.'),
+  volumeMin: z.number().min(0).nullable().describe('Minimum average daily trading volume (e.g., 1000000 for 1M). MUST be a number >= 0 or exactly `null`.'),
   interval: z.enum([
     "daily",
     "weekly",
@@ -45,7 +45,7 @@ export type GetFilterSuggestionsInput = z.infer<typeof GetFilterSuggestionsInput
 export const SuggestedFilterSchema = z.object({
   strategy: z.string().describe('Name of the investment strategy (e.g., Large-Cap Growth, Small-Cap Value).'),
   description: z.string().describe('A brief explanation of the strategy and why these filters are suggested.'),
-  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are full numbers or null.'),
+  filters: FilterCriteriaSchema.describe('The suggested filter values for this strategy. Ensure marketCapMin and volumeMin are numbers >= 0 or null.'),
 });
 export type SuggestedFilter = z.infer<typeof SuggestedFilterSchema>;
 
