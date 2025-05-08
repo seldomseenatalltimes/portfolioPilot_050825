@@ -86,7 +86,8 @@ const getFilterSuggestionsFlow = ai.defineFlow(
     outputSchema: GetFilterSuggestionsOutputSchema, // Use imported schema
   },
   async (input: GetFilterSuggestionsInputInternal): Promise<GetFilterSuggestionsOutputInternal> => {
-    const { output } = await prompt(input);
+    // Use the correct prompt variable name 'suggestionsPrompt'
+    const { output } = await suggestionsPrompt(input); 
 
     if (!output) {
         throw new Error('AI failed to generate filter suggestions.');
@@ -127,3 +128,4 @@ export async function getFilterSuggestions(input: GetFilterSuggestionsInput): Pr
 
 // Re-export the input/output types for convenience
 export type { GetFilterSuggestionsInput, GetFilterSuggestionsOutput };
+
