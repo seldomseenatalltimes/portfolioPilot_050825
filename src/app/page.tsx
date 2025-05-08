@@ -8,8 +8,9 @@ import { FiltersForm } from "@/components/FiltersForm";
 import { OptimizerSelect } from "@/components/OptimizerSelect";
 import { ResultsTable } from "@/components/ResultsTable";
 import { Charts } from "@/components/Charts";
+import { DownloadResultsButton } from "@/components/DownloadResultsButton"; // Import new component
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw } from "lucide-react";
 import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult } from "@/types/portfolio";
@@ -278,6 +279,14 @@ export default function PortfolioPilotPage() {
                     <Separator className="my-6"/>
                     <Charts results={optimizationResults} />
                   </CardContent>
+                  <CardFooter className="flex justify-end p-6 bg-card-foreground/5">
+                     <DownloadResultsButton 
+                        results={optimizationResults}
+                        method={selectedMethod}
+                        filters={filters}
+                        uploadedFileNames={uploadedFiles.map(f => f.name)}
+                      />
+                  </CardFooter>
                 </Card>
               </>
             )}
@@ -310,3 +319,4 @@ function paramsToString(filters: FilterCriteria, files: File[]): string {
   
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
+

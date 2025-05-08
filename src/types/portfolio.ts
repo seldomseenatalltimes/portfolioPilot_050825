@@ -40,7 +40,7 @@ export interface AssetAllocation {
 export interface PortfolioMetrics {
   expectedReturn: number; // Percentage
   risk: number; // Percentage (e.g., volatility)
-  sharpeRatio?: number;
+  sharpeRatio?: number; // Optional, as not all models might produce it
 }
 
 export interface OptimizationResult {
