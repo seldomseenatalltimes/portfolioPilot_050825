@@ -1,5 +1,4 @@
 // src/lib/rate-limiter.ts
-// Removed 'use server' directive - this is a server-side utility, not a Server Action module.
 
 /**
  * @fileOverview In-memory rate limiter to manage API call frequency.

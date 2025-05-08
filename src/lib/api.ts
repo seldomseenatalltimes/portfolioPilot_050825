@@ -35,7 +35,7 @@ function generateRandomMetrics(): PortfolioMetrics {
   };
 }
 
-// Example of how to wrap the data fetching function with the rate limiter
+// Wrap the data fetching function with the rate limiter
 const rateLimitedFetchStockData = yfinanceRateLimiter.wrapAsync(getHistoricalData);
 
 function generateEfficientFrontier(): RiskReturnChartData[] {
