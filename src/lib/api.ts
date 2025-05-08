@@ -77,8 +77,8 @@ export async function uploadTickers(file: File): Promise<{fileName: string, mess
   await delay(1000);
   console.log('Uploading file:', file.name, file.size, file.type);
   
-  if (!file.name.endsWith('.csv')) {
-    throw new Error("Invalid file type. Please upload a CSV file.");
+  if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
+    throw new Error("Invalid file type. Please upload a CSV or TXT file.");
   }
 
   // Simulate success

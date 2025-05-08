@@ -44,7 +44,7 @@ export function FileUpload({ onFileChange, uploadedFileName, setUploadedFileName
     setUploadedFileName(null);
     onFileChange(null);
     // Also clear the input field value
-    const fileInput = document.getElementById('csv-upload') as HTMLInputElement;
+    const fileInput = document.getElementById('ticker-upload') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
     }
@@ -57,18 +57,18 @@ export function FileUpload({ onFileChange, uploadedFileName, setUploadedFileName
   return (
     <div className="space-y-4">
       <div className="grid w-full max-w-sm items-center gap-1.5">
-        <Label htmlFor="csv-upload" className="text-sm font-medium">
-          Upload Ticker CSV
+        <Label htmlFor="ticker-upload" className="text-sm font-medium">
+          Upload Ticker File (CSV or TXT)
         </Label>
         <div className="flex items-center space-x-2">
           <Input
-            id="csv-upload"
+            id="ticker-upload"
             type="file"
-            accept=".csv"
+            accept=".csv,.txt"
             onChange={handleFileChange}
             className="flex-grow file:text-primary file:font-semibold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-primary/10 hover:file:bg-primary/20"
             disabled={isUploading || !!uploadedFileName}
-            aria-describedby="csv-upload-help"
+            aria-describedby="ticker-upload-help"
           />
           {uploadedFileName && (
             <Button variant="ghost" size="icon" onClick={handleRemoveFile} aria-label="Remove file">
@@ -76,8 +76,8 @@ export function FileUpload({ onFileChange, uploadedFileName, setUploadedFileName
             </Button>
           )}
         </div>
-        <p id="csv-upload-help" className="text-xs text-muted-foreground">
-          Please upload a CSV file with your ticker data.
+        <p id="ticker-upload-help" className="text-xs text-muted-foreground">
+          Please upload a CSV or TXT file with your ticker data.
         </p>
       </div>
 
