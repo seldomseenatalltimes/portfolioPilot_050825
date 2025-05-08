@@ -47,6 +47,7 @@ export default function PortfolioPilotPage() {
   };
 
   const handleFiltersChange = useCallback((newFiltersCandidate: FilterCriteria) => {
+    // The value coming from FiltersForm for marketCapMin is already the full number
     setFilters(currentFilters => {
       if (
         currentFilters.marketCapMin === newFiltersCandidate.marketCapMin &&
@@ -105,7 +106,7 @@ export default function PortfolioPilotPage() {
 
       const params: OptimizationParams = {
         uploadedFileNames: uploadResponse.processedFileNames,
-        filters,
+        filters, // filters already contains the full market cap number
         method: selectedMethod,
       };
       const results = await optimizePortfolio(params);
@@ -130,7 +131,7 @@ export default function PortfolioPilotPage() {
 
   const handleReset = () => {
     setUploadedFiles([]);
-    setFilters(initialFiltersState); 
+    setFilters(initialFiltersState); // Reset to initial state
     setSelectedMethod(initialSelectedMethodState);
     setOptimizationResults(null);
     setError(null);
@@ -196,6 +197,7 @@ export default function PortfolioPilotPage() {
                 <CardDescription>Refine data based on your criteria.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
+                {/* Pass the current filters state to FiltersForm */}
                 <FiltersForm initialFilters={filters} onFiltersChange={handleFiltersChange} />
               </CardContent>
             </Card>
@@ -314,7 +316,8 @@ export default function PortfolioPilotPage() {
 function paramsToString(filters: FilterCriteria, files: File[]): string {
   const fileNames = files.map(f => f.name).join(', ');
   const displayFileNames = fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A';
-  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000).toFixed(1)}M` : 'Any';
+  // Divide by 1 billion for display
+  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000_000).toFixed(1)}B` : 'Any'; 
   const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000).toFixed(1)}K` : 'Any';
   
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
