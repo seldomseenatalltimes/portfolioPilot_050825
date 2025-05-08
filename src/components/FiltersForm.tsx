@@ -27,7 +27,7 @@ import {
 import type { FilterCriteria } from "@/types/portfolio";
 
 const formSchema = z.object({
-  marketCapMin: z.coerce.number().positive().optional().nullable(), // Keep internal representation as number (billions part)
+  marketCapMin: z.coerce.number().positive().optional().nullable(), // Keep internal representation as number (hundreds of millions part)
   volumeMin: z.coerce.number().positive().optional().nullable(),
   interval: z.enum([
     "daily",
@@ -51,7 +51,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 1_000_000_000 : null, // Divide for initial display
+      marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for initial display
       volumeMin: initialFilters.volumeMin ?? null,
       interval: initialFilters.interval,
     },
@@ -61,7 +61,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   useEffect(() => {
     const subscription = form.watch((values) => {
       // Ensure values are correctly typed before passing
-      const marketCapValue = values.marketCapMin ? values.marketCapMin * 1_000_000_000 : null; // Multiply by 1B before passing
+      const marketCapValue = values.marketCapMin ? values.marketCapMin * 100_000_000 : null; // Multiply by 100M before passing
       const typedValues: FilterCriteria = {
         marketCapMin: marketCapValue,
         volumeMin: values.volumeMin ?? null,
@@ -75,7 +75,7 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
   // Effect to reset the form when initialFilters prop changes
   useEffect(() => {
     form.reset({
-       marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 1_000_000_000 : null, // Divide for reset display
+       marketCapMin: initialFilters.marketCapMin ? initialFilters.marketCapMin / 100_000_000 : null, // Divide by 100M for reset display
       volumeMin: initialFilters.volumeMin ?? null,
       interval: initialFilters.interval,
     });
@@ -96,12 +96,12 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
           name="marketCapMin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Min. Market Cap (Billions $)</FormLabel>
+              <FormLabel>Min. Market Cap (Hundreds of Millions $)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 10" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value ?? ''} />
+                <Input type="number" placeholder="e.g., 100 (for $10B)" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value ?? ''} />
               </FormControl>
               <FormDescription>
-                Minimum market capitalization in billions of dollars.
+                Minimum market capitalization in hundreds of millions of dollars.
               </FormDescription>
               <FormMessage />
             </FormItem>

@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertTriangle, Settings, BarChartHorizontalBig, SlidersHorizontal, FileText, TrendingUp, Palette, RotateCcw } from "lucide-react";
 import type { FilterCriteria, OptimizationMethod, OptimizationParams, OptimizationResult } from "@/types/portfolio";
-import { optimizePortfolio, uploadTickers } from "@/lib/api"; 
+import { optimizePortfolio, uploadTickers } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const initialFiltersState: FilterCriteria = {
@@ -42,7 +42,7 @@ export default function PortfolioPilotPage() {
   const handleFilesChange = (newFiles: File[]) => {
     setUploadedFiles(newFiles);
     // If files are changed, it's good practice to clear old results
-    if (optimizationResults) setOptimizationResults(null); 
+    if (optimizationResults) setOptimizationResults(null);
     if (error) setError(null);
   };
 
@@ -80,7 +80,7 @@ export default function PortfolioPilotPage() {
     setOptimizationResults(null);
 
     try {
-      const uploadResponse = await uploadTickers(uploadedFiles); 
+      const uploadResponse = await uploadTickers(uploadedFiles);
       toast({
         title: "Files Processed",
         description: uploadResponse.message,
@@ -96,7 +96,7 @@ export default function PortfolioPilotPage() {
         setIsLoading(false);
         return;
       }
-      
+
       if (uploadResponse.processedFileNames.length === 0) {
          setError("No files provided for optimization.");
          setIsLoading(false);
@@ -157,9 +157,9 @@ export default function PortfolioPilotPage() {
             <Palette className="h-8 w-8 mr-3" />
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">PortfolioPilot</h1>
           </div>
-           <a 
-            href="https://github.com/your-repo/portfolio-pilot" 
-            target="_blank" 
+           <a
+            href="https://github.com/your-repo/portfolio-pilot"
+            target="_blank"
             rel="noopener noreferrer"
             className="text-sm hover:underline"
             aria-label="View source code on GitHub"
@@ -181,9 +181,9 @@ export default function PortfolioPilotPage() {
                 <CardDescription>Upload your ticker data (CSV/TXT) to begin.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <FileUpload 
+                <FileUpload
                   files={uploadedFiles}
-                  onFilesChange={handleFilesChange} 
+                  onFilesChange={handleFilesChange}
                 />
               </CardContent>
             </Card>
@@ -214,7 +214,7 @@ export default function PortfolioPilotPage() {
                 <OptimizerSelect selectedMethod={selectedMethod} onMethodChange={handleMethodChange} />
               </CardContent>
             </Card>
-            
+
             <div className="space-y-4">
               <Button
                 onClick={handleOptimize}
@@ -282,7 +282,7 @@ export default function PortfolioPilotPage() {
                     <Charts results={optimizationResults} />
                   </CardContent>
                   <CardFooter className="flex justify-end p-6 bg-card-foreground/5">
-                     <DownloadResultsButton 
+                     <DownloadResultsButton
                         results={optimizationResults}
                         method={selectedMethod}
                         filters={filters}
@@ -316,10 +316,11 @@ export default function PortfolioPilotPage() {
 function paramsToString(filters: FilterCriteria, files: File[]): string {
   const fileNames = files.map(f => f.name).join(', ');
   const displayFileNames = fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A';
-  // Divide by 1 billion for display
-  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000_000).toFixed(1)}B` : 'Any'; 
+  // Divide by 1 billion for display, regardless of form input unit
+  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000_000).toFixed(1)}B` : 'Any';
   const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000).toFixed(1)}K` : 'Any';
-  
+
   return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
+
 
