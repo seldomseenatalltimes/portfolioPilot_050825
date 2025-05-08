@@ -1,7 +1,11 @@
+// src/lib/api.ts
 import type { OptimizationParams, OptimizationResult, RiskReturnChartData, AssetAllocation, PortfolioMetrics } from '@/types/portfolio';
+import { getHistoricalData } from "@/services/stock_data"; // Corrected import path
+import { yfinanceRateLimiter, delay as rateLimitDelay } from '@/lib/rate-limiter'; // Import the rate limiter and renamed delay
 
-// Simulate API delay
+// Simulate API delay - keeping this for mock latency simulation
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 
 const MOCK_ASSETS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'BRK-A', 'JPM', 'V', 'JNJ'];
 
@@ -15,8 +19,11 @@ function generateRandomAllocations(numAssets: number): AssetAllocation[] {
     allocations.push({ asset: assetsToUse[i], allocation: parseFloat(randomAlloc.toFixed(2)) });
     remainingPercentage -= randomAlloc;
   }
-  allocations.push({ asset: assetsToUse[assetsToUse.length - 1], allocation: parseFloat(remainingPercentage.toFixed(2)) });
-  
+  // Ensure the last allocation makes the total 100%
+   if (assetsToUse.length > 0) {
+       allocations.push({ asset: assetsToUse[assetsToUse.length - 1], allocation: parseFloat(remainingPercentage.toFixed(2)) });
+   }
+
   return allocations.sort((a, b) => b.allocation - a.allocation);
 }
 
@@ -27,6 +34,9 @@ function generateRandomMetrics(): PortfolioMetrics {
     sharpeRatio: parseFloat((Math.random() * 1.5 + 0.5).toFixed(2)), // 0.5 to 2.0
   };
 }
+
+// Example of how to wrap the data fetching function with the rate limiter
+const rateLimitedFetchStockData = yfinanceRateLimiter.wrapAsync(getHistoricalData);
 
 function generateEfficientFrontier(): RiskReturnChartData[] {
     const frontier: RiskReturnChartData[] = [];
@@ -40,12 +50,44 @@ function generateEfficientFrontier(): RiskReturnChartData[] {
 
 
 export async function optimizePortfolio(params: OptimizationParams): Promise<OptimizationResult> {
-  await delay(1500); // Simulate network latency
-
   console.log('Optimizing portfolio with params:', params);
 
-  // Simulate different results based on method
-  let allocations = generateRandomAllocations(Math.floor(Math.random() * 6) + 3); // 3 to 8 assets
+  // --- Rate Limiter Integration Point ---
+  // In a real implementation, fetch data for each ticker using the rate-limited function.
+  // This example simulates fetching data for a limited number of mock assets.
+  const tickersToFetch = MOCK_ASSETS.slice(0, 5); // Simulate fetching for first 5 assets
+  const allStockData = {};
+
+  try {
+      console.log(`Fetching data for tickers: ${tickersToFetch.join(', ')} using rate-limited fetch...`);
+      for (const ticker of tickersToFetch) {
+          console.log(`Attempting to fetch data for ${ticker}`);
+          // Use the rate-limited function. It will automatically handle delays if needed.
+          // In a real app, use the actual tickers from processedFileNames
+          const stockData = await rateLimitedFetchStockData(ticker, params.filters.interval);
+          allStockData[ticker] = stockData;
+          console.log(`Successfully fetched data for ${ticker} (or used mock)`);
+      }
+      console.log("Finished fetching all required stock data.");
+  } catch (error) {
+       console.error("Error during rate-limited data fetching:", error);
+       if (error instanceof Error && error.message.includes('Rate limit reached')) {
+           // Specific handling for rate limit errors caught by the API function itself (if it throws)
+           throw error; // Re-throw the specific rate limit error
+       }
+       // Handle other potential errors during fetching
+       throw new Error(`Failed to fetch stock data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  // --- End Rate Limiter Integration Point ---
+
+  // Simulate processing delay AFTER fetching data
+  await delay(500); // Reduced delay as fetching simulation now includes potential rate limit waits
+
+  // --- Mock Result Generation (Using fetched mock data conceptually) ---
+  // In a real scenario, use 'allStockData' to perform actual optimization calculations.
+  // For now, we still generate random results for demonstration.
+
+  let allocations = generateRandomAllocations(tickersToFetch.length); // Use the number of assets we attempted to fetch
   let metrics = generateRandomMetrics();
   let efficientFrontierData: RiskReturnChartData[] | undefined = undefined;
 
@@ -53,19 +95,17 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
     efficientFrontierData = generateEfficientFrontier();
   } else if (params.method === 'Equal Weighting') {
     const numAssets = allocations.length;
-    const equalAllocation = 100 / numAssets;
-    allocations = allocations.map(alloc => ({ ...alloc, allocation: parseFloat(equalAllocation.toFixed(2)) }));
-    // Recalculate last asset allocation to ensure sum is 100
-    let sum = allocations.slice(0, -1).reduce((acc, curr) => acc + curr.allocation, 0);
-    if (allocations.length > 0) {
-      allocations[allocations.length - 1].allocation = parseFloat((100 - sum).toFixed(2));
+     if (numAssets > 0) {
+        const equalAllocation = 100 / numAssets;
+        allocations = allocations.map(alloc => ({ ...alloc, allocation: parseFloat(equalAllocation.toFixed(2)) }));
+        // Adjust last asset to ensure sum is exactly 100 due to potential floating point inaccuracies
+        let sum = allocations.slice(0, -1).reduce((acc, curr) => acc + curr.allocation, 0);
+        allocations[allocations.length - 1].allocation = parseFloat((100 - sum).toFixed(2));
+    } else {
+        allocations = []; // Handle case with zero assets
     }
   }
-  
-  // Simulate failure sometimes
-  // if (Math.random() < 0.1) {
-  //   throw new Error("Simulated API error: Optimization failed.");
-  // }
+
 
   return {
     allocations,
@@ -76,35 +116,41 @@ export async function optimizePortfolio(params: OptimizationParams): Promise<Opt
 
 // Mock for file upload processing, in a real scenario this would send the files to the backend.
 export async function uploadTickers(files: File[]): Promise<{processedFileNames: string[], message: string}> {
-  await delay(1000);
-  
+  await delay(500); // Reduced delay for upload simulation
+
   const processedFileNames: string[] = [];
-  let allFilesValid = true;
+  let invalidFiles: string[] = [];
 
   for (const file of files) {
-    console.log('Uploading file:', file.name, file.size, file.type);
+    console.log('Processing file:', file.name, file.size, file.type);
     if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-      allFilesValid = false;
-      // Continue processing other files or throw an error immediately
-      // For this mock, we'll note it and continue
+      invalidFiles.push(file.name);
       console.warn(`Invalid file type for ${file.name}. Please upload a CSV or TXT file.`);
     } else {
       processedFileNames.push(file.name);
     }
   }
 
-  if (processedFileNames.length === 0 && files.length > 0 && !allFilesValid) {
-     throw new Error("Invalid file type(s). Please upload CSV or TXT files.");
-  }
-  
-  if (processedFileNames.length === 0 && files.length === 0) {
-    return { processedFileNames: [], message: "No files to process." };
+  let message = "";
+  if (processedFileNames.length > 0) {
+      message = `${processedFileNames.length} file(s) processed successfully: ${processedFileNames.join(', ')}.`;
+       if (invalidFiles.length > 0) {
+            message += ` Skipped invalid files: ${invalidFiles.join(', ')}.`;
+       }
+  } else if (files.length > 0 && invalidFiles.length > 0) {
+       throw new Error(`Invalid file type(s): ${invalidFiles.join(', ')}. Please upload only CSV or TXT files.`);
+  } else if (files.length === 0){
+     message = "No files were uploaded.";
+     // It's debatable whether this should be an error or just a message.
+     // For now, let it proceed but the optimize button will be disabled.
+  } else {
+     message = "No valid files found to process." // Should likely be an error state upstream
   }
 
 
   // Simulate success
-  return { 
-    processedFileNames, 
-    message: `${processedFileNames.length} file(s) processed successfully: ${processedFileNames.join(', ')}.` 
+  return {
+    processedFileNames,
+    message
   };
 }
