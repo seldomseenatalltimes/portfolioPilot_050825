@@ -29,7 +29,7 @@ import type { FilterCriteria } from "@/types/portfolio";
 const formSchema = z.object({
   marketCapMin: z.coerce.number().positive().optional().nullable(),
   volumeMin: z.coerce.number().positive().optional().nullable(),
-  interval: z.enum(["daily", "weekly", "monthly"]),
+  interval: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]),
 });
 
 interface FiltersFormProps {
@@ -119,6 +119,8 @@ export function FiltersForm({ initialFilters, onFiltersChange }: FiltersFormProp
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
