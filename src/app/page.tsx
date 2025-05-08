@@ -45,9 +45,18 @@ export default function PortfolioPilotPage() {
     if (error) setError(null);
   };
 
-  const handleFiltersChange = useCallback((newFilters: FilterCriteria) => {
-    setFilters(newFilters);
-  }, []);
+  const handleFiltersChange = useCallback((newFiltersCandidate: FilterCriteria) => {
+    setFilters(currentFilters => {
+      if (
+        currentFilters.marketCapMin === newFiltersCandidate.marketCapMin &&
+        currentFilters.volumeMin === newFiltersCandidate.volumeMin &&
+        currentFilters.interval === newFiltersCandidate.interval
+      ) {
+        return currentFilters; // No actual change, return the current state reference
+      }
+      return newFiltersCandidate; // Values changed, update with the new state
+    });
+  }, []); // Empty dependency array is correct due to functional update form of setFilters
 
   const handleMethodChange = (method: OptimizationMethod) => {
     setSelectedMethod(method);
@@ -120,12 +129,10 @@ export default function PortfolioPilotPage() {
 
   const handleReset = () => {
     setUploadedFiles([]);
-    setFilters(initialFiltersState); // This will trigger re-render of FiltersForm with new initialFilters
+    setFilters(initialFiltersState); 
     setSelectedMethod(initialSelectedMethodState);
     setOptimizationResults(null);
     setError(null);
-    // FileUpload component's onFilesChange([]) will be triggered by setUploadedFiles([]),
-    // which should handle clearing the native file input if implemented correctly inside FileUpload.
     toast({
       title: "Form Reset",
       description: "All inputs and results have been cleared.",
@@ -297,5 +304,9 @@ export default function PortfolioPilotPage() {
 // Helper function to display parameters in card description
 function paramsToString(filters: FilterCriteria, files: File[]): string {
   const fileNames = files.map(f => f.name).join(', ');
-  return `files: ${fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A'}. Filters: Market Cap Min: ${filters.marketCapMin ?? 'Any'}, Volume Min: ${filters.volumeMin ?? 'Any'}, Interval: ${filters.interval}.`;
+  const displayFileNames = fileNames.length > 50 ? fileNames.substring(0,47) + '...' : fileNames || 'N/A';
+  const marketCapDisplay = filters.marketCapMin ? `$${(filters.marketCapMin / 1_000_000).toFixed(1)}M` : 'Any';
+  const volumeDisplay = filters.volumeMin ? `${(filters.volumeMin / 1_000).toFixed(1)}K` : 'Any';
+  
+  return `Files: ${displayFileNames}. Filters: Mkt Cap Min: ${marketCapDisplay}, Vol Min: ${volumeDisplay}, Interval: ${filters.interval}.`;
 }
